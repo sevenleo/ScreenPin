@@ -1,108 +1,133 @@
-========================================================
-SCREENPIN – DESKTOP PER MONITOR (WINDOWS 11)
-Independent Virtual Desktop Simulation per Monitor
-========================================================
+# ScreenPin
 
-📌 OVERVIEW
+**Independent Virtual Desktop Simulation per Monitor for Windows 11**
 
-ScreenPin is a high-performance utility designed to bypass a core limitation of Windows 10/11: the lack of per-monitor virtual desktop isolation. By default, switching virtual desktops affects all connected monitors simultaneously.
+ScreenPin is a high-performance utility designed to bypass a core limitation of the Windows Virtual Desktop system: the lack of per-monitor isolation. By default, switching virtual desktops in Windows affects all connected monitors simultaneously. 
 
-ScreenPin implements a seamless simulation where one monitor remains "static" (fixed) while others transition freely. This is achieved through a robust **Instant Window Migration** strategy, making it a professional-grade alternative to unstable "pinning" methods.
+ScreenPin implements a seamless simulation where a selected "Fixed Monitor" remains static while other monitors transition freely between desktops. This is achieved through a robust **Instant Window Migration** strategy, providing a professional-grade alternative to unstable native "pinning" methods.
 
---------------------------------------------------------
-🎯 CORE STRATEGY: DIRECT WINDOW MIGRATION
---------------------------------------------------------
+## 🚀 Key Features
 
-Unlike traditional solutions that rely on the Windows "Pin Window" feature (which often fails with UWP apps or loses state after OS updates), ScreenPin uses a high-speed migration technique:
+- **Per-Monitor Isolation:** Keep your reference materials, chat apps, or dashboards fixed on one screen while rotating workflows on others.
+- **Instant Window Migration:** Move windows across desktops in micro-seconds, maintaining their exact geometric positions for a "zero-flicker" experience.
+- **100% Compatibility:** Works seamlessly with Win32, UWP (Calculator, Settings), and Electron-based applications.
+- **Portable & Clean:** Single-file architecture. No installers, no registry changes, and a self-cleaning temporary dependency management system.
+- **DPI Aware:** Uses geographic coordinate tracking (X, Y) to ensure precision in complex multi-monitor setups with mixed scaling.
 
-1.  **Selection:** The user defines a "Fixed Monitor".
-2.  **Detection:** The app monitors native Windows desktop switch events.
-3.  **Migration:** Micro-seconds before the desktop transition completes, ScreenPin identifies every window currently visible on the fixed monitor and programmatically moves them to the target virtual desktop.
-4.  **Invisibility:** Because the windows are moved to the same geometric coordinates on the new desktop, they appear to have never moved at all.
+---
 
-This approach ensures 100% compatibility with **Win32**, **UWP (Calculators, Settings)**, and **Electron** apps.
+## 🛠️ Tech Stack
 
---------------------------------------------------------
-🧠 KEY TECHNICAL FEATURES (MODEL DESIGN)
---------------------------------------------------------
+- **Language:** [AutoHotkey v2.0+](https://www.autohotkey.com/)
+- **Core Engine:** [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) (C++ / COM API)
+- **Target OS:** Windows 11 (Optimized for builds up to 25H2)
+- **Architecture:** 64-bit
 
-✔ **Geometric Window Tracking:** Uses geographic screen coordinates (X, Y, Width, Height) instead of simple monitor indices. This ensures precision in complex setups with mixed DPI scaling.
-✔ **Silent Dependency Injection:** The core engine (`VirtualDesktopAccessor.dll`) is embedded directly into the executable and managed via a "Self-Cleaning Temp Pattern".
-✔ **Event-Driven UI:** A modern, single-column GUI built with AHK v2 that adapts its height dynamically based on the number of detected monitors.
-✔ **Zero-Clutter Architecture:** Designed to run as a single file. No installers, no registry changes, and no leftover files in the application folder.
+---
 
---------------------------------------------------------
-🖱️ SYSTEM TRAY & UX PATTERNS
---------------------------------------------------------
+## 🧠 Architecture & Strategy
 
-ScreenPin follows modern UX standards for background utilities:
+### The "Migration" vs "Pinning" Pattern
+Traditional attempts to fix windows to a monitor often rely on the native Windows "Pin Window" feature. However, pinning is notoriously unstable: it frequently fails with UWP apps, loses state after OS updates, and can be reset by third-party window managers.
 
-- **Single Left-Click:** Instantly re-opens the Configuration GUI. This allows for rapid workflow changes (e.g., swapping which monitor is fixed during a meeting).
-- **Right-Click Menu:** A minimalist context menu providing only essential controls (**Settings** and **Exit**).
-- **Smart Lifecycle:** If the user closes the initial configuration window without making a selection, the application terminates immediately rather than idling in the tray.
-- **Visual Feedback:** Uses a dedicated icon in the tray with a descriptive tooltip for easy identification among system processes.
+**ScreenPin uses a Direct Migration workflow:**
+1. **Selection:** The user designates a "Fixed Monitor" via the startup GUI.
+2. **Detection:** The app intercepts native desktop switch events.
+3. **Migration:** Micro-seconds before the transition completes, ScreenPin identifies all windows on the fixed monitor.
+4. **Relocation:** It programmatically moves these windows to the target virtual desktop at the same geometric coordinates.
+5. **Invisibility:** To the user, the windows appear to have never moved, effectively staying "pinned" to the physical screen.
 
---------------------------------------------------------
-🎮 SUPPORTED HOTKEYS
---------------------------------------------------------
+### Single-File Portable Design
+ScreenPin embeds its binary dependencies (`VirtualDesktopAccessor.dll`) directly into the executable. 
+- On startup, it extracts the DLL to `%TEMP%\ScreenPin\`.
+- It loads the DLL functions into the process memory.
+- On exit, it releases the handles and deletes the temporary files, leaving the host system untouched.
 
-The app extends the native Windows desktop navigation experience:
+---
 
-- **Ctrl + Win + → / ↑**  → Next Desktop (Forward)
-- **Ctrl + Win + ← / ↓**  → Previous Desktop (Backward)
-- **Ctrl + Win + Mouse4** → Next Desktop
-- **Ctrl + Win + Mouse5** → Previous Desktop
-- **Ctrl + Win + Delete** → Emergency Reset / Change Fixed Monitor
+## 🖱️ Getting Started
 
---------------------------------------------------------
-🚀 COMPILATION & BUNDLING (DEVELOPER GUIDE)
---------------------------------------------------------
+### Prerequisites
+- **For the Executable:** No prerequisites. Just run `ScreenPin.exe`.
+- **For the Script:** [AutoHotkey v2.0+](https://www.autohotkey.com/v2/) installed.
 
-This project serves as a reference for creating **Single-File Portable AHK v2 Applications**.
+### Installation
+1. Download the latest release from the [Releases](/releases) folder (if available) or compile it yourself.
+2. Run `ScreenPin.exe`.
 
-### The "FileInstall" Pattern
-Since Windows cannot load DLLs directly from RAM, ScreenPin uses the following workflow:
-1.  **Embedding:** During compilation, `FileInstall` bakes the DLL and assets into the `.exe`.
-2.  **Silent Extraction:** On startup, the app creates a private folder in `%TEMP%\ScreenPin\`.
-3.  **Runtime Loading:** The DLL is loaded into the process from this temp path.
-4.  **Auto-Cleanup:** An `OnExit` hook ensures that when the app closes, it releases the DLL handle and deletes the temp folder, leaving the user's system clean.
+### First Run
+1. Upon launch, a configuration GUI will appear.
+2. Select which monitor you wish to keep "Fixed".
+3. Click "None" if you want to temporarily disable the pinning behavior.
+4. The app will move to the System Tray.
 
-### Compiling with AHK v2
-Use the provided `compile.bat`. It is configured to:
-- Use the **AutoHotkey v2 64-bit** interpreter as the binary base.
-- Embed the high-resolution `icon.ico` into the file resources.
-- Output the final binary to the `/releases` folder (automatically ignored by Git).
+---
 
---------------------------------------------------------
-🎨 VISUAL ASSETS
---------------------------------------------------------
+## 🎮 Navigation & Hotkeys
 
-The visual identity of ScreenPin relies on professional iconography to ensure it feels like a native system tool. 
+ScreenPin extends the native Windows navigation experience with enhanced hotkey support:
 
-**Icons sourced from Flaticon:**
-- **Primary App Icon:** [Created by Freepik](https://www.flaticon.com/br/icone-gratis/pin_889668?term=pin&related_id=889668)
-- **Secondary Assets:** [Created by uicon](https://www.flaticon.com/br/icone-gratis/pin_5439377?related_id=5439455&origin=search)
+| Hotkey | Action |
+| :--- | :--- |
+| `Ctrl` + `Win` + `→` / `↑` | **Next Desktop** (Forward) |
+| `Ctrl` + `Win` + `←` / `↓` | **Previous Desktop** (Backward) |
+| `Ctrl` + `Win` + `Mouse4` | **Next Desktop** |
+| `Ctrl` + `Win` + `Mouse5` | **Previous Desktop** |
+| `Ctrl` + `Win` + `Delete` | **Emergency Reset** / Change Fixed Monitor |
 
-*Note: The icon is embedded into the EXE resources, so the `.ico` file is not required for distribution.*
+---
 
---------------------------------------------------------
-🙏 CREDITS
---------------------------------------------------------
+## 📂 Project Structure
 
-### Core Engine
-The heavy lifting of Windows COM API interaction is handled by the **VirtualDesktopAccessor.dll**, maintained by **[Ciantic](https://github.com/Ciantic)**.
-- **Repository:** [Ciantic/VirtualDesktopAccessor](https://github.com/Ciantic/VirtualDesktopAccessor)
+```text
+D:\GITHUB\ScreenPin\
+├── ScreenPin.ahk             # Main application logic (AHK v2)
+├── VirtualDesktopAccessor.dll # Core engine for Windows COM interaction
+├── compile.bat                # Build script for single-file EXE
+├── icon.ico                   # Application icon (embedded during build)
+├── README.md                  # Professional documentation
+├── todo.md                    # Roadmap and bug tracking
+└── releases/                  # Compiled binaries (Git ignored)
+```
 
---------------------------------------------------------
-🖥️ REQUIREMENTS
---------------------------------------------------------
+---
 
-- **OS:** Windows 11 (Optimized for builds up to 25H2).
-- **Runtime:** AutoHotkey v2.0+ (Only required for running the `.ahk` source).
-- **Architecture:** 64-bit.
+## 🏗️ Developer Guide (Compilation)
 
---------------------------------------------------------
-📌 CONCLUSION
---------------------------------------------------------
+To bundle ScreenPin into a single portable `.exe`, use the provided `compile.bat`.
 
-ScreenPin is more than just a utility; it is a demonstration of how to extend Windows functionality with precision and care. By combining low-level DLL calls with high-level AHK scripting and professional UX patterns, it delivers a feature that remains missing from the native OS experience.
+### Compilation Workflow
+The build script uses `Ahk2Exe` to:
+1. Use the **AutoHotkey v2 64-bit** interpreter as the base.
+2. Inject `icon.ico` into the executable resources.
+3. Compress the binary and embed the DLL via the `FileInstall` pattern.
+
+```batch
+:: Run this in a CMD/PowerShell terminal
+compile.bat
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### DLL Load Errors
+If you receive a "Failed to load DLL" message:
+1. Ensure you are running on a 64-bit version of Windows.
+2. Check if your Antivirus is blocking the `%TEMP%` folder extraction.
+3. Try running as Administrator if permissions are restricted.
+
+### Windows 11 Updates
+Microsoft frequently changes the internal COM IDs for Virtual Desktops. If ScreenPin stops working after a major Windows Update, a new version of `VirtualDesktopAccessor.dll` may be required. Check the [Ciantic repository](https://github.com/Ciantic/VirtualDesktopAccessor) for updates.
+
+---
+
+## 🙏 Credits
+
+- **Virtual Desktop Access:** The core COM interaction is handled by the excellent work of **[Ciantic](https://github.com/Ciantic)** and the contributors of [VirtualDesktopAccessor](https://github.com/Ciantic/VirtualDesktopAccessor).
+- **Icons:** Sourced from [Flaticon](https://www.flaticon.com/) (Freepik & uicon).
+
+---
+
+## 📜 License
+This project is open-source. See individual files for specific dependency licenses.
