@@ -11,18 +11,20 @@ Persistent
 ; DEPENDENCIES & CLEANUP
 ; =====================================================
 ; Create a private temp path for this app
-AppTempDir := A_Temp "\ScreenPin"
+AppTempDir := StrReplace(A_Temp, "/", "\") "\ScreenPin"
 if !DirExist(AppTempDir)
     DirCreate(AppTempDir)
 
-; Extract DLL only if not present in temp (overwrites if flag is 1)
+; Extract DLL to temp folder
 FileInstall "VirtualDesktopAccessor.dll", AppTempDir "\VirtualDesktopAccessor.dll", 1
 
 ; Ensure DLL is cleaned up when script exits
 Cleanup(*) {
+    global hVDA
     if hVDA
         DllCall("kernel32.dll\FreeLibrary", "Ptr", hVDA)
-    try DirDelete(AppTempDir, true)
+    if DirExist(AppTempDir)
+        try DirDelete(AppTempDir, true)
 }
 OnExit(Cleanup)
 

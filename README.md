@@ -32,7 +32,8 @@ This approach is much more robust for UWP windows (Calculator, Settings, Termina
 ✔ **High Compatibility:** Works with traditional Win32 windows and modern apps (UWP).
 ✔ **No Leftovers:** Does not change Windows registries or leave windows permanently "pinned".
 
-✔ **Visual Identity:** Integrated custom icon support for a professional look in the System Tray and Taskbar.
+✔ **Visual Identity:** Integrated custom icon support for a professional look. The icon is embedded directly into the executable resources.
+✔ **Clean Workspace:** No more clutter. Dependencies are managed silently in the background.
 
 --------------------------------------------------------
 🎮 HOTKEYS
@@ -44,20 +45,23 @@ ScreenPin replaces/extends native Windows shortcuts to ensure fixed monitor logi
 - **Ctrl + Win + ← / ↓**  → Previous Desktop (Left)
 - **Ctrl + Win + Mouse4** → Next Desktop
 - **Ctrl + Win + Mouse5** → Previous Desktop
-- **Ctrl + Win + Delete** → Restart Script (Back to selection screen)
+- **Ctrl + Win + Delete** → Restart / Change Fixed Monitor
 
 --------------------------------------------------------
 🚀 COMPILATION & PORTABILITY
 --------------------------------------------------------
 
-ScreenPin is designed to be **fully portable**. 
-- The required `VirtualDesktopAccessor.dll` and `icon.ico` are embedded inside the executable using `FileInstall`.
-- When you run the compiled `ScreenPin.exe`, it automatically ensures the DLL is present in its directory to function correctly.
+ScreenPin is a **Zero-Clutter Portable Application**.
+
+- **Silent Dependency Management:** The required `VirtualDesktopAccessor.dll` is embedded inside the EXE. 
+- **Temp Extraction:** When launched, the app silently extracts the DLL to `%TEMP%\ScreenPin\`. 
+- **Auto-Cleanup:** Upon closing or restarting the app, it automatically deletes its temporary folder and files, leaving your system exactly as it found it.
+- **Single File:** You only need to distribute the `ScreenPin.exe` found in the `releases/` folder.
 
 **To compile the project yourself:**
 1. Ensure you have **AutoHotkey v2** installed.
 2. Run the `compile.bat` file.
-3. A single `ScreenPin.exe` will be generated in the **`releases/`** folder.
+3. The compiler will use `ScreenPin.ahk` as the source and generate the final binary.
 
 --------------------------------------------------------
 🙏 CREDITS & ACKNOWLEDGMENTS
