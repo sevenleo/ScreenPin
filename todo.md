@@ -10,6 +10,8 @@
 - [x] Clean up duplicated code and refactor GUI functions.
 - [x] Adjust selection window layout for better alignment and aesthetics.
 - [x] Complete update of README.md with the new movement logic.
+- [x] Integrated custom icon support (Tray and GUI).
+- [x] Full project translation to English.
 
 ## 🔄 Phase 3: Future Improvements
 - [ ] Add support for multiple fixed monitors simultaneously.

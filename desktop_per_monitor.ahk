@@ -2,6 +2,11 @@
 #SingleInstance Force
 Persistent
 
+;@Ahk2Exe-SetMainIcon icon.ico
+;@Ahk2Exe-SetName ScreenPin
+;@Ahk2Exe-SetDescription Independent Virtual Desktop per Monitor
+;@Ahk2Exe-SetVersion 1.0.0
+
 ; =====================================================
 ; CONFIGURATION
 ; =====================================================
@@ -15,6 +20,12 @@ FixedMonitorIndex := 0
 Ready := false
 MonitorCount := 0
 hVDA := 0
+
+; Icon setup
+if FileExist("icon.ico") {
+    TraySetIcon("icon.ico")
+}
+A_IconTip := "ScreenPin - Desktop Per Monitor"
 
 ; DLL Pointers
 pGetDesktopCount := 0
