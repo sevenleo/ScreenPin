@@ -4,7 +4,7 @@ Persistent
 
 ;@Ahk2Exe-SetMainIcon icon.ico
 ;@Ahk2Exe-SetName ScreenPin
-;@Ahk2Exe-SetDescription Independent Virtual Desktop per Monitor
+;@Ahk2Exe-SetDescription ScreenPin
 ;@Ahk2Exe-SetVersion 1.0.0
 
 ; =====================================================
