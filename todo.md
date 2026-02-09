@@ -1,18 +1,18 @@
-# Checklist de Correção - ScreenPin (Windows 11 25H2)
+# Correction Checklist - ScreenPin (Windows 11 25H2)
 
-## ✅ Fase 1: Implementação da Movimentação Direta
-- [x] Implementar detecção de coordenadas de monitor via `MonitorGet`.
-- [x] Corrigir `IsWindowOnFixedMonitor` para usar coordenadas geográficas (X, Y).
-- [x] Modificar `ToggleDesktop` para usar `MoveWindowToDesktopNumber` antes de mudar o desktop.
-- [x] Validar se as janelas UWP (Calculadora, Configurações) acompanham a troca. (Confirmado: Funcionando via DLL)
+## ✅ Phase 1: Implementation of Direct Movement
+- [x] Implement monitor coordinate detection via `MonitorGet`.
+- [x] Fix `IsWindowOnFixedMonitor` to use geographic coordinates (X, Y).
+- [x] Modify `ToggleDesktop` to use `MoveWindowToDesktopNumber` before switching desktops.
+- [x] Validate if UWP windows (Calculator, Settings) follow the switch. (Confirmed: Working via DLL)
 
-## 🎨 Fase 2: Polimento e UI
-- [x] Limpeza de código duplicado e refatoração de funções de GUI.
-- [x] Ajustar layout da janela de escolha para melhor centralização e estética.
-- [x] Atualização completa do README.md com a nova lógica de movimentação.
+## ✅ Phase 2: Polishing and UI
+- [x] Clean up duplicated code and refactor GUI functions.
+- [x] Adjust selection window layout for better alignment and aesthetics.
+- [x] Complete update of README.md with the new movement logic.
 
-## 🔄 Fase Opcional: Futuras Melhorias
-- [ ] Adicionar suporte a múltiplos monitores fixos simultaneamente.
-- [ ] Implementar menu na bandeja (System Tray) para troca rápida de monitor fixo.
-- [ ] Persistência de configuração (Salvar monitor fixo entre reinicializações).
-- [ ] Logs de erro via `OutputDebug` para monitorar retornos da DLL em tempo real.
+## 🔄 Phase 3: Future Improvements
+- [ ] Add support for multiple fixed monitors simultaneously.
+- [ ] Implement System Tray menu for quick fixed monitor switching.
+- [ ] Configuration persistence (Save fixed monitor between restarts).
+- [ ] Error logs via `OutputDebug` to monitor DLL returns in real-time.

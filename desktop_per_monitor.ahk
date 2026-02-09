@@ -3,20 +3,20 @@
 Persistent
 
 ; =====================================================
-; CONFIGURAÇÃO
+; CONFIGURATION
 ; =====================================================
-MaxDesktops := 0    ; Será definido dinamicamente
-UnpinDelayMs := 300 ; Delay para estabilidade (opcional)
+MaxDesktops := 0    ; Set dynamically
+UnpinDelayMs := 300 ; Delay for stability (optional)
 
 ; =====================================================
-; ESTADO GLOBAL
+; GLOBAL STATE
 ; =====================================================
 FixedMonitorIndex := 0
 Ready := false
 MonitorCount := 0
 hVDA := 0
 
-; Ponteiros da DLL
+; DLL Pointers
 pGetDesktopCount := 0
 pGoToDesktopNumber := 0
 pGetCurrentDesktopNumber := 0
@@ -26,7 +26,7 @@ pGetWindowDesktopNumber := 0
 SelectGui := ""
 
 ; =====================================================
-; CARREGAMENTO DA DLL
+; DLL LOADING
 ; =====================================================
 LoadVDA() {
     global hVDA, pGetDesktopCount, pGoToDesktopNumber, pGetCurrentDesktopNumber, pMoveWindowToDesktopNumber, pGetWindowDesktopNumber, MaxDesktops
@@ -34,14 +34,14 @@ LoadVDA() {
     VDA_PATH := A_ScriptDir . "\VirtualDesktopAccessor.dll"
 
     if !FileExist(VDA_PATH) {
-        MsgBox "VirtualDesktopAccessor.dll não encontrada: " . VDA_PATH
+        MsgBox "VirtualDesktopAccessor.dll not found: " . VDA_PATH
         ExitApp
     }
 
     hVDA := DllCall("kernel32.dll\LoadLibrary", "Str", VDA_PATH, "Ptr")
 
     if (!hVDA) {
-        MsgBox "Erro ao carregar DLL. Código: " . A_LastError
+        MsgBox "Error loading DLL. Code: " . A_LastError
         ExitApp
     }
 
@@ -52,7 +52,7 @@ LoadVDA() {
     pGetWindowDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetWindowDesktopNumber", "Ptr")
 
     if (!pGetDesktopCount || !pGoToDesktopNumber || !pGetCurrentDesktopNumber || !pMoveWindowToDesktopNumber) {
-        MsgBox "Falha ao obter endereços das funções na DLL."
+        MsgBox "Failed to get function addresses from DLL."
         ExitApp
     }
 
@@ -60,27 +60,27 @@ LoadVDA() {
 }
 
 ; =====================================================
-; GUI DE SELEÇÃO DO MONITOR FIXO
+; FIXED MONITOR SELECTION GUI
 ; =====================================================
 ShowSelectGui() {
     global SelectGui, MonitorCount, FixedMonitorIndex, Ready
     MonitorCount := MonitorGetCount()
     
-    ; Layout em Coluna (X Absoluto Igual)
+    ; Layout Settings
     btnWidth := 200
     btnHeight := 40
     spacing := 10
     guiWidth := 300
     
-    SelectGui := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "ScreenPin - Configuração")
+    SelectGui := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "ScreenPin - Configuration")
     SelectGui.SetFont("s11 w600", "Segoe UI")
-    SelectGui.AddText("w" guiWidth " Center", "CONFIGURAÇÃO")
+    SelectGui.AddText("w" guiWidth " Center", "CONFIGURATION")
     
     SelectGui.SetFont("s9 w400", "Segoe UI")
-    SelectGui.AddText("wp Center cGray", "Escolha o monitor que ficará fixo:")
+    SelectGui.AddText("wp Center cGray", "Choose which monitor stays fixed:")
     SelectGui.AddText("h5") ; Spacer
 
-    ; Centralização Horizontal
+    ; Horizontal Centering
     xPos := (guiWidth - btnWidth) / 2
     
     OnMonitorClick(ctrl, *) {
@@ -97,27 +97,27 @@ ShowSelectGui() {
         SelectGui.Destroy()
     }
 
-    ; Adiciona botões de monitor em coluna (X fixo)
+    ; Add monitor buttons in column (Fixed X)
     Loop MonitorCount {
         btn := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "Monitor " A_Index)
         btn.OnEvent("Click", OnMonitorClick)
     }
 
-    ; Adiciona botão "Nenhum" na mesma coluna
-    btnNone := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "Nenhum (Padrão Windows)")
+    ; Add "None" button in the same column
+    btnNone := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "None (Windows Default)")
     btnNone.OnEvent("Click", OnNoneClick)
 
-    SelectGui.AddText("x0 y+20 h1 w" guiWidth " 0x10") ; Linha Separadora
+    SelectGui.AddText("x0 y+20 h1 w" guiWidth " 0x10") ; Separator Line
     
     SelectGui.SetFont("s8", "Segoe UI")
-    SelectGui.AddText("wp Center cGray y+10", "Atalho para trocar: Ctrl+Win+Delete")
+    SelectGui.AddText("wp Center cGray y+10", "Switch monitor shortcut: Ctrl+Win+Delete")
     
-    SelectGui.AddText("y+10 h5") ; Margem inferior
+    SelectGui.AddText("y+10 h5") ; Bottom margin
     SelectGui.Show("Center")
 }
 
 ; =====================================================
-; LÓGICA DE GEOMETRIA DE JANELAS
+; WINDOW GEOMETRY LOGIC
 ; =====================================================
 IsWindowOnFixedMonitor(hwnd) {
     global FixedMonitorIndex
@@ -125,17 +125,17 @@ IsWindowOnFixedMonitor(hwnd) {
         return false
 
     try {
-        ; Obter coordenadas do monitor fixo
+        ; Get fixed monitor coordinates
         MonitorGet(FixedMonitorIndex, &L, &T, &R, &B)
         
-        ; Obter posição da janela
+        ; Get window position
         WinGetPos(&X, &Y, &W, &H, hwnd)
         
-        ; Calcular ponto central da janela
+        ; Calculate window center point
         midX := X + (W / 2)
         midY := Y + (H / 2)
         
-        ; Verificar se o centro está dentro do monitor
+        ; Check if center is within monitor boundaries
         return (midX >= L && midX <= R && midY >= T && midY <= B)
     } catch {
         return false
@@ -143,7 +143,7 @@ IsWindowOnFixedMonitor(hwnd) {
 }
 
 ; =====================================================
-; DESKTOP TOGGLE (ESTRATÉGIA DE MOVIMENTAÇÃO)
+; DESKTOP TOGGLE (MIGRATION STRATEGY)
 ; =====================================================
 ToggleDesktop(direction := 1) {
     global Ready, MaxDesktops, pGetCurrentDesktopNumber, pGoToDesktopNumber, pMoveWindowToDesktopNumber, FixedMonitorIndex
@@ -154,23 +154,23 @@ ToggleDesktop(direction := 1) {
     current := DllCall(pGetCurrentDesktopNumber, "Int")
     target := direction > 0 ? Mod(current + 1, MaxDesktops) : Mod(current - 1 + MaxDesktops, MaxDesktops)
 
-    ; Se houver monitor fixo, movemos as janelas dele para o target ANTES de mudar
+    ; If there's a fixed monitor, move its windows to target BEFORE switching
     if (FixedMonitorIndex > 0) {
         windows := WinGetList()
         for hwnd in windows {
             if IsWindowOnFixedMonitor(hwnd) {
-                ; Move a janela para o desktop de destino
+                ; Move window to target desktop
                 DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", target)
             }
         }
     }
 
-    ; Muda o desktop
+    ; Switch desktop
     DllCall(pGoToDesktopNumber, "Int", target)
 }
 
 ; =====================================================
-; INICIALIZAÇÃO
+; INITIALIZATION
 ; =====================================================
 LoadVDA()
 ShowSelectGui()
@@ -178,7 +178,7 @@ ShowSelectGui()
 ; =====================================================
 ; HOTKEYS
 ; =====================================================
-; Ctrl + Win + Setas (Sobrescrevendo nativo se necessário)
+; Ctrl + Win + Arrows (Override native if needed)
 Hotkey "^#Right",     (*) => ToggleDesktop(1)
 Hotkey "^#Left",      (*) => ToggleDesktop(-1)
 Hotkey "^#Up",        (*) => ToggleDesktop(1)
@@ -192,7 +192,7 @@ Hotkey "^#XButton1",  (*) => ToggleDesktop(-1)
 Hotkey "^#Delete",    (*) => Reload()
 
 ; =====================================================
-; NOTA SOBRE WINDOWS 11 25H2
+; NOTE ON WINDOWS 11 25H2
 ; =====================================================
-; A estratégia de mover janelas manualmente é mais robusta que o "Pin"
-; porque não depende da persistência do estado de pinagem do sistema.
+; The manual window movement strategy is more robust than "Pinning"
+; because it doesn't rely on the persistence of the system's pinning state.

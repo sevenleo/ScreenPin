@@ -1,67 +1,67 @@
 ========================================================
 SCREENPIN – DESKTOP PER MONITOR (WINDOWS 11)
-Simulação de Desktop Virtual Independente por Monitor
+Independent Virtual Desktop Simulation per Monitor
 ========================================================
 
-📌 VISÃO GERAL
+📌 OVERVIEW
 
-O ScreenPin (anteriormente Desktop Per Monitor) é uma solução avançada para contornar a limitação dos Desktops Virtuais do Windows 11, onde a troca de desktop afeta todos os monitores globalmente.
+ScreenPin (formerly Desktop Per Monitor) is an advanced solution to bypass the Windows 11 Virtual Desktop limitation, where switching desktops affects all monitors globally.
 
-Diferente de soluções baseadas em "Pinagem" de janelas (que podem ser instáveis em versões recentes do Windows como a 25H2), este projeto utiliza uma técnica de **migração instantânea de janelas**. 
+Unlike solutions based on window "Pinning" (which can be unstable in recent Windows versions like 25H2), this project uses an **instant window migration** technique.
 
-O resultado é a simulação perfeita de que um monitor está "fixo" enquanto os outros alternam livremente entre desktops virtuais, sem janelas presas ou resíduos no sistema.
-
---------------------------------------------------------
-🎯 A NOVA ESTRATÉGIA (MOVIMENTAÇÃO DIRETA)
---------------------------------------------------------
-
-A lógica foi evoluída para garantir 100% de compatibilidade e performance:
-
-1.  **Monitor Fixo:** Você escolhe qual monitor deve manter suas janelas estáticas.
-2.  **Migração Pré-Troca:** No exato milissegundo antes de mudar o desktop, o script identifica as janelas no monitor fixo e as move para o desktop de destino.
-3.  **Transição Transparente:** O Windows muda de desktop, mas como as janelas do monitor fixo "já estão lá", elas parecem nunca ter saído do lugar.
-
-Essa abordagem é muito mais robusta para janelas UWP (Calculadora, Configurações, Terminal) e evita bugs de foco.
+The result is a seamless simulation where one monitor stays "fixed" while others switch freely between virtual desktops, with no stuck windows or system leftovers.
 
 --------------------------------------------------------
-🧠 RECURSOS TÉCNICOS
+🎯 THE NEW STRATEGY (DIRECT MOVEMENT)
 --------------------------------------------------------
 
-✔ **Seleção Inteligente:** Interface gráfica (GUI) moderna para escolher o monitor fixo no início.
-✔ **Detecção Geométrica:** Usa coordenadas geográficas (X, Y) para identificar janelas, garantindo precisão mesmo em monitores com diferentes escalas (DPI).
-✔ **Alta Compatibilidade:** Funciona com janelas Win32 tradicionais e aplicativos modernos (UWP).
-✔ **Sem Resíduos:** Não altera registros do Windows nem deixa janelas "pinadas" permanentemente.
+The logic has evolved to ensure 100% compatibility and performance:
+
+1.  **Fixed Monitor:** You choose which monitor should keep its windows static.
+2.  **Pre-Switch Migration:** In the exact millisecond before switching desktops, the script identifies windows on the fixed monitor and moves them to the target desktop.
+3.  **Transparent Transition:** Windows switches desktops, but since the windows on the fixed monitor "are already there", they appear to have never moved.
+
+This approach is much more robust for UWP windows (Calculator, Settings, Terminal) and avoids focus bugs.
 
 --------------------------------------------------------
-🎮 ATALHOS (HOTKEYS)
+🧠 TECHNICAL FEATURES
 --------------------------------------------------------
 
-O ScreenPin substitui/estende os atalhos nativos do Windows para garantir a lógica de monitor fixo:
-
-- **Ctrl + Win + → / ↑**  → Próximo Desktop (Direita)
-- **Ctrl + Win + ← / ↓**  → Desktop Anterior (Esquerda)
-- **Ctrl + Win + Mouse4** → Próximo Desktop
-- **Ctrl + Win + Mouse5** → Desktop Anterior
-- **Ctrl + Win + Delete** → Reiniciar o Script (Voltar à tela de seleção)
+✔ **Smart Selection:** Modern Graphical User Interface (GUI) to choose the fixed monitor on startup.
+✔ **Geometric Detection:** Uses geographic coordinates (X, Y) to identify windows, ensuring precision even on monitors with different scales (DPI).
+✔ **High Compatibility:** Works with traditional Win32 windows and modern apps (UWP).
+✔ **No Leftovers:** Does not change Windows registries or leave windows permanently "pinned".
 
 --------------------------------------------------------
-🖥️ REQUISITOS E DEPENDÊNCIAS
+🎮 HOTKEYS
+--------------------------------------------------------
+
+ScreenPin replaces/extends native Windows shortcuts to ensure fixed monitor logic:
+
+- **Ctrl + Win + → / ↑**  → Next Desktop (Right)
+- **Ctrl + Win + ← / ↓**  → Previous Desktop (Left)
+- **Ctrl + Win + Mouse4** → Next Desktop
+- **Ctrl + Win + Mouse5** → Previous Desktop
+- **Ctrl + Win + Delete** → Restart Script (Back to selection screen)
+
+--------------------------------------------------------
+🖥️ REQUIREMENTS AND DEPENDENCIES
 --------------------------------------------------------
 
 - **AutoHotkey v2.0+**
-- **VirtualDesktopAccessor.dll** (Inclusa no projeto)
-- **Windows 11** (Testado e otimizado para as builds mais recentes, incluindo 25H2)
+- **VirtualDesktopAccessor.dll** (Included in the project)
+- **Windows 11** (Tested and optimized for latest builds, including 25H2)
 
-O projeto depende da DLL `VirtualDesktopAccessor` de autoria de **Ciantic**, que fornece a ponte necessária com as APIs internas de Desktop Virtual do Windows.
-
---------------------------------------------------------
-⚠️ NOTA DE PERFORMANCE
---------------------------------------------------------
-
-O script foi otimizado para realizar a migração de janelas de forma assíncrona e imediata, minimizando qualquer "flicker" visual. Para melhor experiência, recomenda-se desativar as animações de troca de desktop nas configurações de acessibilidade do Windows se você busca uma transição instantânea.
+The project relies on the `VirtualDesktopAccessor` DLL by **Ciantic**, which provides the necessary bridge to Windows internal Virtual Desktop APIs.
 
 --------------------------------------------------------
-📌 CONCLUSÃO
+⚠️ PERFORMANCE NOTE
 --------------------------------------------------------
 
-O ScreenPin entrega a funcionalidade mais requisitada por usuários de múltiplos monitores: a capacidade de manter o fluxo de trabalho fixo em uma tela enquanto explora diferentes contextos nas outras. Simples, robusto e essencial para produtividade avançada.
+The script is optimized to perform window migration asynchronously and immediately, minimizing any visual "flicker". For the best experience, it is recommended to disable desktop switch animations in Windows accessibility settings if you seek an instant transition.
+
+--------------------------------------------------------
+📌 CONCLUSION
+--------------------------------------------------------
+
+ScreenPin delivers the most requested feature by multi-monitor users: the ability to keep a workflow fixed on one screen while exploring different contexts on others. Simple, robust, and essential for advanced productivity.
