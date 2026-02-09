@@ -64,57 +64,56 @@ LoadVDA() {
 ; =====================================================
 ShowSelectGui() {
     global SelectGui, MonitorCount, FixedMonitorIndex, Ready
-
     MonitorCount := MonitorGetCount()
     
-    SelectGui := Gui("+AlwaysOnTop", "Desktop Per Monitor")
-    SelectGui.SetFont("s10")
-
-    SelectGui.AddText("w340 Center",
-        "Qual monitor deve permanecer FIXO" "`n"
-        "durante a troca de desktops?"
-    )
-
-    SelectGui.AddText("w340 Center cGray",
-        "Configurações > Exibição > Identificar"
-    )
-
-    SelectGui.AddText("h12")
-
-    btnWidth := 70
+    ; Layout em Coluna (X Absoluto Igual)
+    btnWidth := 200
+    btnHeight := 40
     spacing := 10
+    guiWidth := 300
+    
+    SelectGui := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "ScreenPin - Configuração")
+    SelectGui.SetFont("s11 w600", "Segoe UI")
+    SelectGui.AddText("w" guiWidth " Center", "CONFIGURAÇÃO")
+    
+    SelectGui.SetFont("s9 w400", "Segoe UI")
+    SelectGui.AddText("wp Center cGray", "Escolha o monitor que ficará fixo:")
+    SelectGui.AddText("h5") ; Spacer
 
-    Loop MonitorCount {
-        btn := SelectGui.AddButton(
-            "w" btnWidth " h35 x" (spacing + (A_Index-1)*(btnWidth+spacing)),
-            A_Index
-        )
-        btn.OnEvent("Click", OnMonitorButtonClick)
+    ; Centralização Horizontal
+    xPos := (guiWidth - btnWidth) / 2
+    
+    OnMonitorClick(ctrl, *) {
+        global FixedMonitorIndex, Ready
+        FixedMonitorIndex := Integer(RegExReplace(ctrl.Text, "\D"))
+        Ready := true
+        SelectGui.Destroy()
     }
 
-    SelectGui.AddText("x10 y+15 h10") ; Spacer
+    OnNoneClick(*) {
+        global FixedMonitorIndex, Ready
+        FixedMonitorIndex := 0
+        Ready := true
+        SelectGui.Destroy()
+    }
 
-    btnNone := SelectGui.AddButton(
-        "w" (btnWidth * 2) " h35 x100",
-        "Nenhum"
-    )
-    btnNone.OnEvent("Click", OnNoneButtonClick)
+    ; Adiciona botões de monitor em coluna (X fixo)
+    Loop MonitorCount {
+        btn := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "Monitor " A_Index)
+        btn.OnEvent("Click", OnMonitorClick)
+    }
 
-    SelectGui.Show("AutoSize Center")
-}
+    ; Adiciona botão "Nenhum" na mesma coluna
+    btnNone := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "Nenhum (Padrão Windows)")
+    btnNone.OnEvent("Click", OnNoneClick)
 
-OnMonitorButtonClick(ctrl, *) {
-    global FixedMonitorIndex, Ready, SelectGui
-    FixedMonitorIndex := Integer(ctrl.Text)
-    Ready := true
-    SelectGui.Destroy()
-}
-
-OnNoneButtonClick(*) {
-    global FixedMonitorIndex, Ready, SelectGui
-    FixedMonitorIndex := 0
-    Ready := true
-    SelectGui.Destroy()
+    SelectGui.AddText("x0 y+20 h1 w" guiWidth " 0x10") ; Linha Separadora
+    
+    SelectGui.SetFont("s8", "Segoe UI")
+    SelectGui.AddText("wp Center cGray y+10", "Atalho para trocar: Ctrl+Win+Delete")
+    
+    SelectGui.AddText("y+10 h5") ; Margem inferior
+    SelectGui.Show("Center")
 }
 
 ; =====================================================
