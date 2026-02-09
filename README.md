@@ -47,22 +47,27 @@ ScreenPin replaces/extends native Windows shortcuts to ensure fixed monitor logi
 - **Ctrl + Win + Delete** → Restart Script (Back to selection screen)
 
 --------------------------------------------------------
-🎨 ACKNOWLEDGMENTS (ICONS)
+🙏 CREDITS & ACKNOWLEDGMENTS
 --------------------------------------------------------
 
-The icons used in this project were sourced from **Flaticon**:
-- [Pin Icon (Main)](https://www.flaticon.com/br/icone-gratis/pin_889668?term=pin&related_id=889668)
-- [Alternative Pin Icon](https://www.flaticon.com/br/icone-gratis/pin_5439377?related_id=5439455&origin=search)
+### Core Engine
+This project would not be possible without the **VirtualDesktopAccessor.dll**, a remarkable piece of engineering by **[Ciantic](https://github.com/Ciantic)**. It provides the low-level bridge to Windows' internal Virtual Desktop COM API. 
+- **Repository:** [Ciantic/VirtualDesktopAccessor](https://github.com/Ciantic/VirtualDesktopAccessor)
+
+### Visual Assets
+The professional iconography for ScreenPin was sourced from **Flaticon**. Special thanks to the designers of:
+- **Primary Pin Icon:** [Created by Freepik](https://www.flaticon.com/br/icone-gratis/pin_889668?term=pin&related_id=889668)
+- **Secondary Pin Icon:** [Created by uicon](https://www.flaticon.com/br/icone-gratis/pin_5439377?related_id=5439455&origin=search)
+
+We sincerely appreciate the open-source contributors and designers whose work empowers the community to build better tools.
 
 --------------------------------------------------------
-🖥️ REQUIREMENTS AND DEPENDENCIES
+🖥️ REQUIREMENTS & STACK
 --------------------------------------------------------
 
 - **AutoHotkey v2.0+**
-- **VirtualDesktopAccessor.dll** (Included in the project)
-- **Windows 11** (Tested and optimized for latest builds, including 25H2)
-
-The project relies on the `VirtualDesktopAccessor` DLL by **Ciantic**, which provides the necessary bridge to Windows internal Virtual Desktop APIs.
+- **VirtualDesktopAccessor.dll** (Pre-bundled)
+- **Windows 11** (Optimized for builds up to 25H2)
 
 --------------------------------------------------------
 ⚠️ PERFORMANCE NOTE
