@@ -47,6 +47,19 @@ ScreenPin replaces/extends native Windows shortcuts to ensure fixed monitor logi
 - **Ctrl + Win + Delete** → Restart Script (Back to selection screen)
 
 --------------------------------------------------------
+🚀 COMPILATION & PORTABILITY
+--------------------------------------------------------
+
+ScreenPin is designed to be **fully portable**. 
+- The required `VirtualDesktopAccessor.dll` and `icon.ico` are embedded inside the executable using `FileInstall`.
+- When you run the compiled `ScreenPin.exe`, it automatically ensures the DLL is present in its directory to function correctly.
+
+**To compile the project yourself:**
+1. Ensure you have **AutoHotkey v2** installed.
+2. Run the `compile.bat` file.
+3. A single `ScreenPin.exe` will be generated in the **`releases/`** folder.
+
+--------------------------------------------------------
 🙏 CREDITS & ACKNOWLEDGMENTS
 --------------------------------------------------------
 

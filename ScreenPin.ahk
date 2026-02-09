@@ -8,6 +8,25 @@ Persistent
 ;@Ahk2Exe-SetVersion 1.0.0
 
 ; =====================================================
+; DEPENDENCIES & CLEANUP
+; =====================================================
+; Create a private temp path for this app
+AppTempDir := A_Temp "\ScreenPin"
+if !DirExist(AppTempDir)
+    DirCreate(AppTempDir)
+
+; Extract DLL only if not present in temp (overwrites if flag is 1)
+FileInstall "VirtualDesktopAccessor.dll", AppTempDir "\VirtualDesktopAccessor.dll", 1
+
+; Ensure DLL is cleaned up when script exits
+Cleanup(*) {
+    if hVDA
+        DllCall("kernel32.dll\FreeLibrary", "Ptr", hVDA)
+    try DirDelete(AppTempDir, true)
+}
+OnExit(Cleanup)
+
+; =====================================================
 ; CONFIGURATION
 ; =====================================================
 MaxDesktops := 0    ; Set dynamically
@@ -21,12 +40,6 @@ Ready := false
 MonitorCount := 0
 hVDA := 0
 
-; Icon setup
-if FileExist("icon.ico") {
-    TraySetIcon("icon.ico")
-}
-A_IconTip := "ScreenPin - Desktop Per Monitor"
-
 ; DLL Pointers
 pGetDesktopCount := 0
 pGoToDesktopNumber := 0
@@ -36,23 +49,21 @@ pGetWindowDesktopNumber := 0
 
 SelectGui := ""
 
+; Icon setup (Read from the EXE itself or script icon)
+A_IconTip := "ScreenPin - Desktop Per Monitor"
+
 ; =====================================================
 ; DLL LOADING
 ; =====================================================
 LoadVDA() {
-    global hVDA, pGetDesktopCount, pGoToDesktopNumber, pGetCurrentDesktopNumber, pMoveWindowToDesktopNumber, pGetWindowDesktopNumber, MaxDesktops
+    global hVDA, pGetDesktopCount, pGoToDesktopNumber, pGetCurrentDesktopNumber, pMoveWindowToDesktopNumber, pGetWindowDesktopNumber, MaxDesktops, AppTempDir
 
-    VDA_PATH := A_ScriptDir . "\VirtualDesktopAccessor.dll"
-
-    if !FileExist(VDA_PATH) {
-        MsgBox "VirtualDesktopAccessor.dll not found: " . VDA_PATH
-        ExitApp
-    }
+    VDA_PATH := AppTempDir "\VirtualDesktopAccessor.dll"
 
     hVDA := DllCall("kernel32.dll\LoadLibrary", "Str", VDA_PATH, "Ptr")
 
     if (!hVDA) {
-        MsgBox "Error loading DLL. Code: " . A_LastError
+        MsgBox "Error loading DLL from temp: " . VDA_PATH . "`nCode: " . A_LastError
         ExitApp
     }
 
