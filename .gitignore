@@ -1,2 +1,11 @@
-/releases
-/releases/ScreenPin.exe
+# Compiled binaries
+/releases/
+*.exe
+
+# AutoHotkey temporary files
+*.ahk.bak
+*.ahk~
+
+# OS files
+Thumbs.db
+Desktop.ini
