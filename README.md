@@ -32,6 +32,8 @@ This approach is much more robust for UWP windows (Calculator, Settings, Termina
 ✔ **High Compatibility:** Works with traditional Win32 windows and modern apps (UWP).
 ✔ **No Leftovers:** Does not change Windows registries or leave windows permanently "pinned".
 
+✔ **Visual Identity:** Integrated custom icon support for a professional look in the System Tray and Taskbar.
+
 --------------------------------------------------------
 🎮 HOTKEYS
 --------------------------------------------------------
@@ -43,6 +45,14 @@ ScreenPin replaces/extends native Windows shortcuts to ensure fixed monitor logi
 - **Ctrl + Win + Mouse4** → Next Desktop
 - **Ctrl + Win + Mouse5** → Previous Desktop
 - **Ctrl + Win + Delete** → Restart Script (Back to selection screen)
+
+--------------------------------------------------------
+🎨 ACKNOWLEDGMENTS (ICONS)
+--------------------------------------------------------
+
+The icons used in this project were sourced from **Flaticon**:
+- [Pin Icon (Main)](https://www.flaticon.com/br/icone-gratis/pin_889668?term=pin&related_id=889668)
+- [Alternative Pin Icon](https://www.flaticon.com/br/icone-gratis/pin_5439377?related_id=5439455&origin=search)
 
 --------------------------------------------------------
 🖥️ REQUIREMENTS AND DEPENDENCIES
