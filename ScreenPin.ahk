@@ -55,6 +55,21 @@ SelectGui := ""
 A_IconTip := "ScreenPin - Desktop Per Monitor"
 
 ; =====================================================
+; TRAY MENU CONFIGURATION
+; =====================================================
+ConfigureTray() {
+    Tray := A_TrayMenu
+    Tray.Delete() ; Clear default menu
+    Tray.Add("Settings (Change Monitor)", (*) => Reload())
+    Tray.Add() ; Separator
+    Tray.Add("Exit", (*) => ExitApp())
+    
+    Tray.Default := "Settings (Change Monitor)"
+    Tray.ClickCount := 1 ; Single click on tray icon triggers the default item
+}
+ConfigureTray()
+
+; =====================================================
 ; DLL LOADING
 ; =====================================================
 LoadVDA() {
@@ -97,6 +112,7 @@ ShowSelectGui() {
     guiWidth := 300
     
     SelectGui := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "ScreenPin - Configuration")
+    SelectGui.OnEvent("Close", (*) => ExitApp())
     SelectGui.SetFont("s11 w600", "Segoe UI")
     SelectGui.AddText("w" guiWidth " Center", "CONFIGURATION")
     
