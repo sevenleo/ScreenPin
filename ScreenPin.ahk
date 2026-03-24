@@ -34,6 +34,7 @@ OnExit(Cleanup)
 MaxDesktops := 0    ; Set dynamically
 UnpinDelayMs := 300 ; Delay for stability (optional)
 ScrollDebounceMs := 1000 ; Throttle wheel-based desktop switches
+DoubleTapWindowMs := 250 ; Max gap between ScrollLock taps
 
 ; =====================================================
 ; GLOBAL STATE
@@ -222,6 +223,20 @@ HandleWheelDesktop(direction := 1) {
     ToggleDesktop(direction)
 }
 
+HandleScrollLockDoubleTap(*) {
+    global DoubleTapWindowMs
+    static lastTap := 0
+
+    now := A_TickCount
+    if (now - lastTap <= DoubleTapWindowMs) {
+        lastTap := 0
+        ToggleDesktop(1)
+        return
+    }
+
+    lastTap := now
+}
+
 ; =====================================================
 ; INITIALIZATION
 ; =====================================================
@@ -246,6 +261,8 @@ Hotkey "XButton2 & XButton1", (*) => ToggleDesktop(-1)
 HotIf (*) => GetKeyState("RButton", "P") && GetKeyState("XButton1", "P")
 Hotkey "WheelDown", (*) => HandleWheelDesktop(1)
 HotIf
+
+Hotkey "ScrollLock", HandleScrollLockDoubleTap
 
 
 ; Reset
