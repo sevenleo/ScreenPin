@@ -73,6 +73,8 @@ ScreenPin extends the native Windows navigation experience with enhanced hotkey 
 | `Ctrl` + `Win` + `←` / `↓` | **Previous Desktop** (Backward) |
 | `Ctrl` + `Win` + `Mouse4` | **Next Desktop** |
 | `Ctrl` + `Win` + `Mouse5` | **Previous Desktop** |
+| `Right Mouse` + `Mouse4` + `WheelDown` | **Next Desktop** (debounced) |
+| `ScrollLock` (double tap) | **Next Desktop** |
 | `Ctrl` + `Win` + `Delete` | **Emergency Reset** / Change Fixed Monitor |
 
 ---

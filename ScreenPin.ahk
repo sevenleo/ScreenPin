@@ -152,7 +152,11 @@ ShowSelectGui() {
     SelectGui.AddText("x0 y+20 h1 w" guiWidth " 0x10") ; Separator Line
     
     SelectGui.SetFont("s8", "Segoe UI")
-    SelectGui.AddText("wp Center cGray y+10", "Switch monitor shortcut: Ctrl+Win+Delete")
+    SelectGui.AddText("wp Center cGray y+10", "Switch pinned monitor: Ctrl+Win+Delete")
+    SelectGui.AddText("wp Center cGray", "Desktop switch: Ctrl+Win+Arrows")
+    SelectGui.AddText("wp Center cGray", "Desktop switch: Ctrl+Win+ Mouse4 or Mouse5")
+    SelectGui.AddText("wp Center cGray", "Desktop switch: Press scrollLock twice")
+    SelectGui.AddText("wp Center cGray", "Advanced hotkey: hold Right Mouse + Mouse4, then WheelDown")
     
     SelectGui.AddText("y+10 h5") ; Bottom margin
     SelectGui.Show("Center")
@@ -255,8 +259,6 @@ Hotkey "^#Down",      (*) => ToggleDesktop(-1)
 ; Mouse Buttons
 Hotkey "^#XButton2",  (*) => ToggleDesktop(1)
 Hotkey "^#XButton1",  (*) => ToggleDesktop(-1)
-Hotkey "XButton1 & XButton2", (*) => ToggleDesktop(1)
-Hotkey "XButton2 & XButton1", (*) => ToggleDesktop(-1)
 
 HotIf (*) => GetKeyState("RButton", "P") && GetKeyState("XButton1", "P")
 Hotkey "WheelDown", (*) => HandleWheelDesktop(1)
