@@ -264,7 +264,7 @@ HotIf (*) => GetKeyState("RButton", "P") && GetKeyState("XButton1", "P")
 Hotkey "WheelDown", (*) => HandleWheelDesktop(1)
 HotIf
 
-Hotkey "ScrollLock", HandleScrollLockDoubleTap
+Hotkey "~ScrollLock", HandleScrollLockDoubleTap
 
 
 ; Reset
