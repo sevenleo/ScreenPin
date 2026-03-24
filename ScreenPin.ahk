@@ -33,6 +33,7 @@ OnExit(Cleanup)
 ; =====================================================
 MaxDesktops := 0    ; Set dynamically
 UnpinDelayMs := 300 ; Delay for stability (optional)
+ScrollDebounceMs := 1000 ; Throttle wheel-based desktop switches
 
 ; =====================================================
 ; GLOBAL STATE
@@ -209,6 +210,18 @@ ToggleDesktop(direction := 1) {
     DllCall(pGoToDesktopNumber, "Int", target)
 }
 
+HandleWheelDesktop(direction := 1) {
+    global ScrollDebounceMs
+    static lastTick := 0
+
+    now := A_TickCount
+    if (now - lastTick < ScrollDebounceMs)
+        return
+
+    lastTick := now
+    ToggleDesktop(direction)
+}
+
 ; =====================================================
 ; INITIALIZATION
 ; =====================================================
@@ -227,6 +240,13 @@ Hotkey "^#Down",      (*) => ToggleDesktop(-1)
 ; Mouse Buttons
 Hotkey "^#XButton2",  (*) => ToggleDesktop(1)
 Hotkey "^#XButton1",  (*) => ToggleDesktop(-1)
+Hotkey "XButton1 & XButton2", (*) => ToggleDesktop(1)
+Hotkey "XButton2 & XButton1", (*) => ToggleDesktop(-1)
+
+HotIf (*) => GetKeyState("RButton", "P") && GetKeyState("XButton1", "P")
+Hotkey "WheelDown", (*) => HandleWheelDesktop(1)
+HotIf
+
 
 ; Reset
 Hotkey "^#Delete",    (*) => Reload()
