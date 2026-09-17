@@ -22,7 +22,7 @@ FileInstall "VirtualDesktopAccessor.dll", AppTempDir "\VirtualDesktopAccessor.dl
 Cleanup(*) {
     global hVDA
     if hVDA
-        DllCall("kernel32.dll\FreeLibrary", "Ptr", hVDA)
+        try DllCall("kernel32.dll\FreeLibrary", "Ptr", hVDA)
     if DirExist(AppTempDir)
         try DirDelete(AppTempDir, true)
 }
@@ -62,7 +62,7 @@ A_IconTip := "ScreenPin - Desktop Per Monitor"
 ConfigureTray() {
     Tray := A_TrayMenu
     Tray.Delete() ; Clear default menu
-    Tray.Add("Settings (Change Monitor)", (*) => Reload())
+    Tray.Add("Settings (Change Monitor)", (*) => ShowSelectGui())
     Tray.Add() ; Separator
     Tray.Add("Exit", (*) => ExitApp())
     
@@ -105,6 +105,7 @@ LoadVDA() {
 ; =====================================================
 ShowSelectGui() {
     global SelectGui, MonitorCount, FixedMonitorIndex, Ready
+    try SelectGui.Destroy() ; Avoid duplicate windows on repeated tray clicks
     MonitorCount := MonitorGetCount()
     
     ; Layout Settings
@@ -194,25 +195,39 @@ IsWindowOnFixedMonitor(hwnd) {
 ToggleDesktop(direction := 1) {
     global Ready, MaxDesktops, pGetCurrentDesktopNumber, pGoToDesktopNumber, pMoveWindowToDesktopNumber, FixedMonitorIndex
 
-    if (!Ready || MaxDesktops < 2)
+    ; Re-entrancy guard: rapid hotkeys must not stack blocking COM calls
+    static busy := false
+    if (busy)
         return
+    busy := true
+    try {
+        if (!Ready || MaxDesktops < 2)
+            return
 
-    current := DllCall(pGetCurrentDesktopNumber, "Int")
-    target := direction > 0 ? Mod(current + 1, MaxDesktops) : Mod(current - 1 + MaxDesktops, MaxDesktops)
+        current := DllCall(pGetCurrentDesktopNumber, "Int")
+        target := direction > 0 ? Mod(current + 1, MaxDesktops) : Mod(current - 1 + MaxDesktops, MaxDesktops)
 
-    ; If there's a fixed monitor, move its windows to target BEFORE switching
-    if (FixedMonitorIndex > 0) {
-        windows := WinGetList()
-        for hwnd in windows {
-            if IsWindowOnFixedMonitor(hwnd) {
-                ; Move window to target desktop
-                DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", target)
+        ; If there's a fixed monitor, move its windows to target BEFORE switching
+        if (FixedMonitorIndex > 0) {
+            windows := WinGetList()
+            for hwnd in windows {
+                if IsWindowOnFixedMonitor(hwnd) {
+                    ; Skip hung windows: a COM move against one blocks the main thread forever
+                    if (DllCall("IsHungAppWindow", "Ptr", hwnd, "Int"))
+                        continue
+                    ; Move window to target desktop
+                    DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", target)
+                }
             }
         }
-    }
 
-    ; Switch desktop
-    DllCall(pGoToDesktopNumber, "Int", target)
+        ; Switch desktop
+        DllCall(pGoToDesktopNumber, "Int", target)
+    } catch {
+        ; A DLL/COM failure must never destabilize the script's main thread
+    } finally {
+        busy := false
+    }
 }
 
 HandleWheelDesktop(direction := 1) {

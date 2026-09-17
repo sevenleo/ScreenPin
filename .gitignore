@@ -9,3 +9,6 @@
 # OS files
 Thumbs.db
 Desktop.ini
+.env
+PLAN/
+sync.py
