@@ -2,44 +2,46 @@
 
 **Independent Virtual Desktop Simulation per Monitor for Windows 11**
 
-ScreenPin is a high-performance utility designed to bypass a core limitation of the Windows Virtual Desktop system: the lack of per-monitor isolation. By default, switching virtual desktops in Windows affects all connected monitors simultaneously. 
+ScreenPin simulates per-monitor isolation by moving windows on a selected monitor before a virtual desktop switch made through ScreenPin's own shortcuts. Windows does not provide a per-monitor virtual desktop switch through this app.
 
-ScreenPin implements a seamless simulation where a selected "Fixed Monitor" remains static while other monitors transition freely between desktops. This is achieved through a robust **Instant Window Migration** strategy, providing a professional-grade alternative to unstable native "pinning" methods.
+When one of ScreenPin's desktop-switch shortcuts is used, windows on the selected "Fixed Monitor" are moved to the destination desktop before ScreenPin switches desktops.
 
 ## 🚀 Key Features
 
 - **Per-Monitor Isolation:** Keep your reference materials, chat apps, or dashboards fixed on one screen while rotating workflows on others.
-- **Instant Window Migration:** Move windows across desktops in micro-seconds, maintaining their exact geometric positions for a "zero-flicker" experience.
-- **Session Restore:** Return windows that were open at startup to their original virtual desktops with **Restore** or when ScreenPin exits. Windows opened later are left untouched.
-- **100% Compatibility:** Works seamlessly with Win32, UWP (Calculator, Settings), and Electron-based applications.
+- **Window Migration:** Move windows on the selected monitor to the destination desktop before switching.
+- **Session Restore:** Return windows that were open at startup to their original virtual desktops with **Restore** or when ScreenPin exits normally. Windows opened later are left untouched.
 - **Portable & Clean:** Single-file architecture. No installers, no registry changes, and a self-cleaning temporary dependency management system.
-- **DPI Aware:** Uses geographic coordinate tracking (X, Y) to ensure precision in complex multi-monitor setups with mixed scaling.
+- **Monitor Selection:** Uses each window's screen position to determine whether it is on the selected monitor.
 
 ---
 
 ## 🛠️ Tech Stack
 
 - **Language:** [AutoHotkey v2.0+](https://www.autohotkey.com/)
-- **Core Engine:** [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) (C++ / COM API)
-- **Target OS:** Windows 11 (Optimized for builds up to 25H2)
+- **Core Engine:** [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) (Windows virtual desktop interfaces)
+- **Target OS:** Windows 11; virtual desktop API support depends on the installed Windows build and bundled DLL.
 - **Architecture:** 64-bit
 
 ---
 
 ## 🧠 Architecture & Strategy
 
-### The "Migration" vs "Pinning" Pattern
-Traditional attempts to fix windows to a monitor often rely on the native Windows "Pin Window" feature. However, pinning is notoriously unstable: it frequently fails with UWP apps, loses state after OS updates, and can be reset by third-party window managers.
+### Migration instead of native pinning
+ScreenPin does not use Windows' native "Pin Window" feature. It moves windows when the user switches desktops with ScreenPin's shortcuts.
 
-**ScreenPin uses a Direct Migration workflow:**
+**ScreenPin uses a shortcut-driven migration workflow:**
 1. **Selection:** The user designates a "Fixed Monitor" via the startup GUI.
-2. **Detection:** The app intercepts native desktop switch events.
-3. **Migration:** Micro-seconds before the transition completes, ScreenPin identifies all windows on the fixed monitor.
-4. **Relocation:** It programmatically moves these windows to the target virtual desktop at the same geometric coordinates.
-5. **Invisibility:** To the user, the windows appear to have never moved, effectively staying "pinned" to the physical screen.
+2. **Shortcut:** The user switches desktops with one of ScreenPin's configured shortcuts.
+3. **Migration:** ScreenPin identifies windows on the fixed monitor and moves them to the destination virtual desktop.
+4. **Switch:** ScreenPin switches to that desktop after attempting the migration.
+
+ScreenPin does not intercept desktop switches made through Win+Tab, Windows gestures, or other applications.
 
 ### Session Restore
-ScreenPin records the virtual desktop ID of each existing top-level window when it starts. Choose **Restore** from the tray menu or the configuration window to disable the fixed monitor and immediately return those windows to their original desktops. The same restoration runs when ScreenPin exits normally. Selecting **None (Windows Default)** only disables migration; the original window positions are restored when the app exits. Windows opened after ScreenPin starts are not part of the session snapshot.
+At startup, ScreenPin records the process ID and virtual desktop GUID for eligible visible application windows across all desktops, including minimized windows and windows on inactive desktops. It keeps this original snapshot in memory for the session.
+
+Choose **Restore** from the tray menu or configuration window to disable migration and move still-valid startup windows to their original desktops. Restore leaves the app open and retains the original snapshot, so it can be repeated. Selecting **None (Windows Default)** only disables migration; restoration then happens on normal exit. Windows opened after startup are left where they are. Closed windows and windows whose original desktop was removed are skipped. ScreenPin reports individual failures and continues with other windows. A crash or forced process termination cannot guarantee restoration.
 
 ### Single-File Portable Design
 ScreenPin embeds its binary dependencies (`VirtualDesktopAccessor.dll`) directly into the executable. 
@@ -63,16 +65,16 @@ ScreenPin embeds its binary dependencies (`VirtualDesktopAccessor.dll`) directly
 1. Upon launch, a configuration GUI will appear.
 2. Select which monitor you wish to keep "Fixed".
 3. Click "None" if you want to temporarily disable migration without restoring windows immediately.
-4. Click "Restore" to disable migration and immediately return startup windows to their original virtual desktops.
+4. Click "Restore" to disable migration and immediately return startup windows to their original virtual desktops while keeping ScreenPin open.
 5. The app will move to the System Tray.
 
-The tray menu also provides **Restore**, **Settings (Change Monitor)**, and **Exit**. Exit restores the startup windows before closing.
+The tray menu also provides **Restore**, **Settings (Change Monitor)**, and **Exit**. Exit restores the startup windows before closing. Choosing **None** does not restore until the app exits normally.
 
 ---
 
 ## 🎮 Navigation & Hotkeys
 
-ScreenPin extends the native Windows navigation experience with enhanced hotkey support:
+These shortcuts are handled by ScreenPin and only affect desktop changes initiated with them:
 
 | Hotkey | Action |
 | :--- | :--- |
@@ -103,7 +105,7 @@ D:\GITHUB\ScreenPin\
 
 ## 🏗️ Developer Guide (Compilation)
 
-To bundle ScreenPin into a single portable `.exe`, use the provided `compile.bat`.
+To bundle ScreenPin into a single portable `.exe`, invoke the compiler directly. The current `compile.bat` closes every AutoHotkey process before building, so avoid it if other AutoHotkey scripts are running.
 
 ### Compilation Workflow
 The build script uses `Ahk2Exe` to:
@@ -111,15 +113,25 @@ The build script uses `Ahk2Exe` to:
 2. Inject `icon.ico` into the executable resources.
 3. Compress the binary and embed the DLL via the `FileInstall` pattern.
 
-```batch
-:: Run this in a CMD/PowerShell terminal
-compile.bat
+```powershell
+& "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe" `
+  /in "$PWD\ScreenPin.ahk" `
+  /out "$PWD\releases\ScreenPin.exe" `
+  /icon "$PWD\icon.ico" `
+  /bin "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
 ```
 
-Run the focused session-restore logic check with AutoHotkey v2:
+Run the session-restore logic test with AutoHotkey v2:
 
 ```batch
 "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" test_restore_logic.ahk --self-test
+```
+
+The integration test creates disposable windows and uses the real DLL. It requires at least two existing virtual desktops. Run it against both the script and compiled executable:
+
+```batch
+"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" ScreenPin.ahk --integration-test
+"releases\ScreenPin.exe" --integration-test
 ```
 
 ---
