@@ -134,8 +134,7 @@ LoadVDA() {
     hVDA := DllCall("kernel32.dll\LoadLibrary", "Str", VDA_PATH, "Ptr")
 
     if (!hVDA) {
-        MsgBox "Error loading DLL from temp: " . VDA_PATH . "`nCode: " . A_LastError
-        ExitApp
+        throw Error("Error loading DLL from temp: " VDA_PATH "`nCode: " A_LastError)
     }
 
     pGetDesktopCount := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetDesktopCount", "Ptr")
@@ -147,15 +146,13 @@ LoadVDA() {
     pGetWindowDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetWindowDesktopNumber", "Ptr")
 
     if (!pGetDesktopCount || !pGoToDesktopNumber || !pGetCurrentDesktopNumber || !pMoveWindowToDesktopNumber || !pGetWindowDesktopId || !pGetDesktopNumberById || !pGetWindowDesktopNumber) {
-        MsgBox "Failed to get function addresses from DLL."
-        ExitApp
+        throw Error("Failed to get function addresses from the virtual desktop DLL.")
     }
 
     MaxDesktops := DllCall(pGetDesktopCount, "Int")
     currentDesktop := DllCall(pGetCurrentDesktopNumber, "Int")
     if (MaxDesktops < 1 || currentDesktop < 0 || currentDesktop >= MaxDesktops) {
-        MsgBox "Failed to query the current virtual desktop from the DLL."
-        ExitApp
+        throw Error("Failed to query the current virtual desktop from the DLL.")
     }
 }
 
@@ -186,10 +183,11 @@ ShowSelectGui() {
     xPos := (guiWidth - btnWidth) / 2
     
     OnMonitorClick(ctrl, *) {
-        global FixedMonitorIndex, Ready, MigrationEpoch, SelectGui
-        FixedMonitorIndex := Integer(RegExReplace(ctrl.Text, "\D"))
-        MigrationEpoch += 1
-        Ready := true
+        global SelectGui
+        monitorIndex := Integer(RegExReplace(ctrl.Text, "\D"))
+        pinResult := PinMonitorAndConsolidate(monitorIndex)
+        if (pinResult.Failed || pinResult.Ignored || !pinResult.SnapshotReady)
+            ShowPinSummary(pinResult)
         SelectGui.Destroy()
     }
 
@@ -432,6 +430,189 @@ ShowRestoreSummary(result) {
     TrayTip(message, "ScreenPin - Restore")
 }
 
+PinMonitorAndConsolidate(monitorIndex, testWindowSet := 0) {
+    global FixedMonitorIndex, Ready, MigrationEpoch, SnapshotCaptured
+    static busy := false
+    if busy
+        return { SnapshotReady: SnapshotCaptured, Moved: 0, AlreadyThere: 0, OutsideMonitor: 0, Ignored: 1, Failed: 0 }
+    if (monitorIndex < 1 || monitorIndex > MonitorGetCount())
+        return { SnapshotReady: SnapshotCaptured, Moved: 0, AlreadyThere: 0, OutsideMonitor: 0, Ignored: 0, Failed: 1 }
+
+    busy := true
+    operationEpoch := 0
+    try {
+        MigrationEpoch += 1
+        operationEpoch := MigrationEpoch
+        FixedMonitorIndex := monitorIndex
+        Ready := false
+        try {
+            windowsToMove := CollectWindowsOnFixedMonitor(testWindowSet)
+            result := MoveWindowsToCurrentDesktop(operationEpoch, windowsToMove)
+        } catch {
+            result := { SnapshotReady: SnapshotCaptured, TargetDesktop: -1, Moved: 0, AlreadyThere: 0, OutsideMonitor: 0, Ignored: 0, Failed: 1 }
+        }
+        return result
+    } finally {
+        if (operationEpoch && MigrationEpoch = operationEpoch)
+            Ready := true
+        busy := false
+    }
+}
+
+CollectWindowsOnFixedMonitor(testWindowSet := 0) {
+    windows := Map()
+    appProcessId := DllCall("GetCurrentProcessId", "UInt")
+    previousDetectHiddenWindows := DetectHiddenWindows(true)
+    try {
+        for hwnd in WinGetList() {
+            isTestWindow := IsObject(testWindowSet) && testWindowSet.Has(hwnd)
+            if (IsObject(testWindowSet) && !isTestWindow)
+                continue
+            if (!DllCall("IsWindow", "Ptr", hwnd, "Int") || !DllCall("IsWindowVisible", "Ptr", hwnd, "Int") || hwnd = A_ScriptHwnd)
+                continue
+
+            windowPid := 0
+            if (!DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &windowPid, "UInt") || !windowPid || (windowPid = appProcessId && !isTestWindow))
+                continue
+            if IsWindowOnFixedMonitor(hwnd)
+                windows[hwnd] := { ProcessId: windowPid }
+        }
+    } finally {
+        DetectHiddenWindows(previousDetectHiddenWindows)
+    }
+    return windows
+}
+
+MoveWindowsToCurrentDesktop(operationEpoch, windowsToMove) {
+    global StartupWindowDesktops, SnapshotCaptured, MaxDesktops, MigrationEpoch
+    global pGetCurrentDesktopNumber, pGetWindowDesktopNumber, pMoveWindowToDesktopNumber
+    static busy := false
+
+    result := { SnapshotReady: SnapshotCaptured, TargetDesktop: -1, Moved: 0, AlreadyThere: 0, OutsideMonitor: 0, Ignored: 0, Failed: 0 }
+    if busy {
+        result.Ignored := StartupWindowDesktops.Count
+        return result
+    }
+    if !SnapshotCaptured {
+        result.Failed := 1
+        return result
+    }
+    if (!pGetCurrentDesktopNumber || !pGetWindowDesktopNumber || !pMoveWindowToDesktopNumber) {
+        result.Failed := StartupWindowDesktops.Count ? StartupWindowDesktops.Count : 1
+        return result
+    }
+
+    targetDesktop := DllCall(pGetCurrentDesktopNumber, "Int")
+    if (targetDesktop < 0 || targetDesktop >= MaxDesktops) {
+        result.Failed := 1
+        return result
+    }
+    result.TargetDesktop := targetDesktop
+
+    busy := true
+    try {
+        for hwnd, window in windowsToMove {
+            if (operationEpoch != MigrationEpoch)
+                break
+            if !DllCall("IsWindow", "Ptr", hwnd, "Int") {
+                if StartupWindowDesktops.Has(hwnd)
+                    StartupWindowDesktops.Delete(hwnd)
+                result.Ignored += 1
+                continue
+            }
+
+            windowPid := 0
+            if (!DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &windowPid, "UInt") || windowPid != window.ProcessId) {
+                if StartupWindowDesktops.Has(hwnd)
+                    StartupWindowDesktops.Delete(hwnd)
+                result.Ignored += 1
+                continue
+            }
+            if !IsWindowOnFixedMonitor(hwnd) {
+                result.OutsideMonitor += 1
+                continue
+            }
+
+            try {
+                currentDesktop := DllCall(pGetWindowDesktopNumber, "Ptr", hwnd, "Int")
+                if (currentDesktop < 0) {
+                    result.Failed += 1
+                    continue
+                }
+                if (currentDesktop = targetDesktop) {
+                    result.AlreadyThere += 1
+                    continue
+                }
+                if DllCall("IsHungAppWindow", "Ptr", hwnd, "Int") {
+                    result.Ignored += 1
+                    continue
+                }
+                if (operationEpoch != MigrationEpoch)
+                    break
+
+                currentPid := 0
+                if (!DllCall("IsWindow", "Ptr", hwnd, "Int") || !DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &currentPid, "UInt") || currentPid != window.ProcessId) {
+                    if StartupWindowDesktops.Has(hwnd)
+                        StartupWindowDesktops.Delete(hwnd)
+                    result.Ignored += 1
+                    continue
+                }
+                moveResult := DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", targetDesktop, "Int")
+                if (moveResult != 1) {
+                    result.Failed += 1
+                    continue
+                }
+
+                deadline := A_TickCount + 250
+                loop {
+                    if (operationEpoch != MigrationEpoch) {
+                        result.Ignored += 1
+                        break
+                    }
+                    if !DllCall("IsWindow", "Ptr", hwnd, "Int") {
+                        if StartupWindowDesktops.Has(hwnd)
+                            StartupWindowDesktops.Delete(hwnd)
+                        result.Ignored += 1
+                        break
+                    }
+                    currentPid := 0
+                    DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &currentPid, "UInt")
+                    if (currentPid != window.ProcessId) {
+                        if StartupWindowDesktops.Has(hwnd)
+                            StartupWindowDesktops.Delete(hwnd)
+                        result.Ignored += 1
+                        break
+                    }
+                    currentDesktop := DllCall(pGetWindowDesktopNumber, "Ptr", hwnd, "Int")
+                    if (currentDesktop = targetDesktop) {
+                        result.Moved += 1
+                        break
+                    }
+                    if (A_TickCount >= deadline) {
+                        result.Failed += 1
+                        break
+                    }
+                    Sleep(50)
+                }
+            } catch {
+                result.Failed += 1
+            }
+        }
+    } finally {
+        busy := false
+    }
+
+    OutputDebug("ScreenPin monitor consolidation: " result.Moved " moved, " result.AlreadyThere " already there, " result.OutsideMonitor " outside selected monitor, " result.Ignored " skipped, " result.Failed " failed.")
+    return result
+}
+
+ShowPinSummary(result) {
+    message := result.SnapshotReady
+        ? "Moved: " result.Moved ", already in place: " result.AlreadyThere ", other monitor: " result.OutsideMonitor ", skipped: " result.Ignored ", failed: " result.Failed "."
+        : "The startup window snapshot is unavailable. Restart ScreenPin and try again."
+    TrayTip(message, "ScreenPin - Monitor pin")
+}
+
 RunRestoreSelfTest() {
     global StartupWindowDesktops, pGetDesktopNumberById, pMoveWindowToDesktopNumber
     global pGetWindowDesktopNumber, FixedMonitorIndex, Ready, SelectGui, SnapshotCaptured, MigrationEpoch
@@ -587,6 +768,7 @@ RunRestoreIntegrationTest() {
     global AppTempDir, hVDA, MaxDesktops, pGetDesktopCount, pGetCurrentDesktopNumber
     global pMoveWindowToDesktopNumber, pGetWindowDesktopNumber, pGetWindowDesktopId, pGetDesktopNumberById
     global StartupWindowDesktops, SnapshotCaptured, WindowDestroyHook, WindowDestroyCallbackPtr
+    global FixedMonitorIndex, Ready, MigrationEpoch
 
     currentPid := DllCall("GetCurrentProcessId", "UInt")
     testTempDir := A_Temp "\ScreenPin-RestoreTest-" currentPid
@@ -609,6 +791,9 @@ RunRestoreIntegrationTest() {
     SnapshotCaptured := false
     WindowDestroyHook := 0
     WindowDestroyCallbackPtr := 0
+    FixedMonitorIndex := 0
+    Ready := false
+    MigrationEpoch := 0
 
     testWindows := []
     try {
@@ -619,19 +804,35 @@ RunRestoreIntegrationTest() {
 
         originalDesktop := DllCall(pGetCurrentDesktopNumber, "Int")
         otherDesktop := Mod(originalDesktop + 1, MaxDesktops)
+        selectedMonitor := 1
+        MonitorGet(selectedMonitor, &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+        monitorCount := MonitorGetCount()
+        if (monitorCount > 1) {
+            MonitorGet(2, &otherMonitorLeft, &otherMonitorTop, &otherMonitorRight, &otherMonitorBottom)
+            otherWindowX := otherMonitorLeft + 40
+            otherWindowY := otherMonitorTop + 40
+        } else {
+            otherWindowX := monitorRight + 100
+            otherWindowY := monitorTop + 40
+        }
+
         windowOnOriginalDesktop := Gui(, "ScreenPin restore integration original")
-        windowOnOriginalDesktop.Show("NA w220 h80")
+        windowOnOriginalDesktop.Show("NA x" (monitorLeft + 40) " y" (monitorTop + 40) " w220 h80")
         testWindows.Push(windowOnOriginalDesktop)
 
         windowOnOtherDesktop := Gui(, "ScreenPin restore integration inactive")
-        windowOnOtherDesktop.Show("NA w220 h80")
+        windowOnOtherDesktop.Show("NA x" (monitorLeft + 300) " y" (monitorTop + 40) " w220 h80")
         testWindows.Push(windowOnOtherDesktop)
         if (DllCall(pMoveWindowToDesktopNumber, "Ptr", windowOnOtherDesktop.Hwnd, "Int", otherDesktop, "Int") != 1)
             throw Error("Could not move the disposable integration window to another desktop.")
 
         closedOriginalWindow := Gui(, "ScreenPin restore integration closed")
-        closedOriginalWindow.Show("NA w220 h80")
+        closedOriginalWindow.Show("NA x" (monitorLeft + 560) " y" (monitorTop + 40) " w220 h80")
         testWindows.Push(closedOriginalWindow)
+
+        otherMonitorWindow := Gui(, "ScreenPin restore integration other monitor")
+        otherMonitorWindow.Show("NA x" otherWindowX " y" otherWindowY " w220 h80")
+        testWindows.Push(otherMonitorWindow)
 
         if !InstallWindowDestroyHook()
             throw Error("Could not install the integration-test destroy hook.")
@@ -639,7 +840,7 @@ RunRestoreIntegrationTest() {
         captureResult := CaptureStartupWindows()
         if !captureResult.SnapshotReady
             throw Error("Startup window capture did not complete.")
-        if (!StartupWindowDesktops.Has(windowOnOriginalDesktop.Hwnd) || !StartupWindowDesktops.Has(windowOnOtherDesktop.Hwnd) || !StartupWindowDesktops.Has(closedOriginalWindow.Hwnd))
+        if (!StartupWindowDesktops.Has(windowOnOriginalDesktop.Hwnd) || !StartupWindowDesktops.Has(windowOnOtherDesktop.Hwnd) || !StartupWindowDesktops.Has(closedOriginalWindow.Hwnd) || !StartupWindowDesktops.Has(otherMonitorWindow.Hwnd))
             throw Error("Capture did not include every eligible disposable window across both desktops.")
 
         ; The capture scans the real desktop, but the integration test may restore only its own windows.
@@ -660,14 +861,14 @@ RunRestoreIntegrationTest() {
         if !inactiveWindowWasEnumerated
             throw Error("AutoHotkey did not enumerate the cloaked disposable window.")
 
-        expectedDesktopByHwnd := Map(windowOnOriginalDesktop.Hwnd, originalDesktop, windowOnOtherDesktop.Hwnd, otherDesktop, closedOriginalWindow.Hwnd, originalDesktop)
+        expectedDesktopByHwnd := Map(windowOnOriginalDesktop.Hwnd, originalDesktop, windowOnOtherDesktop.Hwnd, otherDesktop, closedOriginalWindow.Hwnd, originalDesktop, otherMonitorWindow.Hwnd, originalDesktop)
         for testWindow in testWindows {
             if (DllCall(pGetWindowDesktopNumber, "Ptr", testWindow.Hwnd, "Int") != expectedDesktopByHwnd[testWindow.Hwnd])
                 throw Error("The DLL returned an unexpected original desktop for a disposable window.")
         }
 
         newWindow := Gui(, "ScreenPin restore integration new")
-        newWindow.Show("NA w220 h80")
+        newWindow.Show("NA x" (monitorLeft + 40) " y" (monitorTop + 150) " w220 h80")
         testWindows.Push(newWindow)
         newWindowDesktop := -1
         deadline := A_TickCount + 250
@@ -676,8 +877,27 @@ RunRestoreIntegrationTest() {
             if (newWindowDesktop < 0)
                 Sleep(50)
         }
-        if (newWindowDesktop < 0)
-            throw Error("The DLL could not identify the desktop for a post-snapshot disposable window.")
+        if (newWindowDesktop != originalDesktop)
+            throw Error("The DLL could not identify the original desktop for a post-snapshot test window.")
+        newWindowMoveResult := DllCall(pMoveWindowToDesktopNumber, "Ptr", newWindow.Hwnd, "Int", otherDesktop, "Int")
+        if (newWindowMoveResult != 1)
+            throw Error("Could not place a post-snapshot disposable window on the inactive desktop (DLL result " newWindowMoveResult ").")
+        if StartupWindowDesktops.Has(newWindow.Hwnd)
+            throw Error("A post-snapshot window was added to the original restore snapshot.")
+
+        testCandidates := Map()
+        for testWindow in testWindows
+            testCandidates[testWindow.Hwnd] := true
+        pinResult := PinMonitorAndConsolidate(selectedMonitor, testCandidates)
+        if (!pinResult.SnapshotReady || pinResult.TargetDesktop != originalDesktop || pinResult.Moved != 2 || pinResult.AlreadyThere != 2 || pinResult.OutsideMonitor != 0 || pinResult.Failed || !Ready || FixedMonitorIndex != selectedMonitor)
+            throw Error("Pin activation counts were moved=" pinResult.Moved ", already=" pinResult.AlreadyThere ", outside=" pinResult.OutsideMonitor ", skipped=" pinResult.Ignored ", failed=" pinResult.Failed ", target=" pinResult.TargetDesktop ".")
+        if (DllCall(pGetWindowDesktopNumber, "Ptr", windowOnOtherDesktop.Hwnd, "Int") != originalDesktop || DllCall(pGetWindowDesktopNumber, "Ptr", otherMonitorWindow.Hwnd, "Int") != originalDesktop)
+            throw Error("Pin activation moved a window to the wrong desktop or affected another monitor.")
+        if (DllCall(pGetWindowDesktopNumber, "Ptr", newWindow.Hwnd, "Int") != originalDesktop)
+            throw Error("Pin activation did not consolidate a post-snapshot window on the selected monitor.")
+        for testWindow in testWindows
+            if (testSnapshot.Has(testWindow.Hwnd) && StartupWindowDesktops[testWindow.Hwnd].DesktopId.Ptr != testSnapshot[testWindow.Hwnd].DesktopId.Ptr)
+                throw Error("Pin activation replaced an original desktop GUID in the startup snapshot.")
 
         closedHwnd := closedOriginalWindow.Hwnd
         closedOriginalWindow.Destroy()
@@ -686,18 +906,22 @@ RunRestoreIntegrationTest() {
             throw Error("The destroy hook did not remove a closed original window.")
 
         for hwnd, window in StartupWindowDesktops {
+            if !IsWindowOnFixedMonitor(hwnd)
+                continue
             targetDesktop := DllCall(pGetDesktopNumberById, "Ptr", window.DesktopId.Ptr, "Int")
             moveToDesktop := targetDesktop = originalDesktop ? otherDesktop : originalDesktop
             if (DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", moveToDesktop, "Int") != 1)
                 throw Error("Could not move a tracked disposable window before restore.")
         }
+        if (DllCall(pMoveWindowToDesktopNumber, "Ptr", newWindow.Hwnd, "Int", otherDesktop, "Int") != 1)
+            throw Error("Could not move a post-snapshot disposable window before restore.")
 
         restoreResult := RestoreStartupWindows()
-        if (restoreResult.Failed || restoreResult.Restored != 2)
+        if (restoreResult.Failed || restoreResult.Restored != 2 || restoreResult.AlreadyAtOrigin != 1)
             throw Error("Restore did not return both live original windows to their origins.")
         if (DllCall(pGetWindowDesktopNumber, "Ptr", windowOnOriginalDesktop.Hwnd, "Int") != originalDesktop || DllCall(pGetWindowDesktopNumber, "Ptr", windowOnOtherDesktop.Hwnd, "Int") != otherDesktop)
             throw Error("A tracked disposable window did not return to its original desktop.")
-        if (DllCall(pGetWindowDesktopNumber, "Ptr", newWindow.Hwnd, "Int") != newWindowDesktop || StartupWindowDesktops.Has(newWindow.Hwnd))
+        if (DllCall(pGetWindowDesktopNumber, "Ptr", newWindow.Hwnd, "Int") != otherDesktop || StartupWindowDesktops.Has(newWindow.Hwnd))
             throw Error("Restore moved a disposable window created after the snapshot.")
         if (DllCall(pGetCurrentDesktopNumber, "Int") != originalDesktop)
             throw Error("Restore changed the active virtual desktop.")
@@ -830,7 +1054,11 @@ HandleScrollLockDoubleTap(*) {
 ; =====================================================
 ; INITIALIZATION
 ; =====================================================
-LoadVDA()
+try LoadVDA()
+catch as err {
+    MsgBox("Failed to initialize the virtual desktop DLL.`n" err.Message, "ScreenPin")
+    ExitApp(1)
+}
 if !InstallWindowDestroyHook() {
     MsgBox "Failed to install the window tracking hook. ScreenPin cannot safely restore startup windows."
     ExitApp
