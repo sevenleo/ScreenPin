@@ -2,6 +2,12 @@
 #SingleInstance Force
 Persistent
 
+if (A_Args.Length && A_Args[1] = "--self-test") {
+    StartupWindowDesktops := Map()
+    RunRestoreSelfTest()
+    ExitApp()
+}
+
 ;@Ahk2Exe-SetMainIcon icon.ico
 ;@Ahk2Exe-SetName ScreenPin
 ;@Ahk2Exe-SetDescription ScreenPin
@@ -20,7 +26,16 @@ FileInstall "VirtualDesktopAccessor.dll", AppTempDir "\VirtualDesktopAccessor.dl
 
 ; Ensure DLL is cleaned up when script exits
 Cleanup(*) {
-    global hVDA
+    global hVDA, AppTempDir, WindowDestroyHook, WindowDestroyCallbackPtr
+    RestoreStartupWindows()
+    if WindowDestroyHook {
+        try DllCall("UnhookWinEvent", "Ptr", WindowDestroyHook, "Int")
+        WindowDestroyHook := 0
+    }
+    if WindowDestroyCallbackPtr {
+        try CallbackFree(WindowDestroyCallbackPtr)
+        WindowDestroyCallbackPtr := 0
+    }
     if hVDA
         try DllCall("kernel32.dll\FreeLibrary", "Ptr", hVDA)
     if DirExist(AppTempDir)
@@ -49,9 +64,13 @@ pGetDesktopCount := 0
 pGoToDesktopNumber := 0
 pGetCurrentDesktopNumber := 0
 pMoveWindowToDesktopNumber := 0
-pGetWindowDesktopNumber := 0
+pGetWindowDesktopId := 0
+pGetDesktopNumberById := 0
 
 SelectGui := ""
+StartupWindowDesktops := Map()
+WindowDestroyHook := 0
+WindowDestroyCallbackPtr := 0
 
 ; Icon setup (Read from the EXE itself or script icon)
 A_IconTip := "ScreenPin - Desktop Per Monitor"
@@ -63,6 +82,7 @@ ConfigureTray() {
     Tray := A_TrayMenu
     Tray.Delete() ; Clear default menu
     Tray.Add("Settings (Change Monitor)", (*) => ShowSelectGui())
+    Tray.Add("Restore", (*) => RestoreAndDisablePin())
     Tray.Add() ; Separator
     Tray.Add("Exit", (*) => ExitApp())
     
@@ -75,7 +95,7 @@ ConfigureTray()
 ; DLL LOADING
 ; =====================================================
 LoadVDA() {
-    global hVDA, pGetDesktopCount, pGoToDesktopNumber, pGetCurrentDesktopNumber, pMoveWindowToDesktopNumber, pGetWindowDesktopNumber, MaxDesktops, AppTempDir
+    global hVDA, pGetDesktopCount, pGoToDesktopNumber, pGetCurrentDesktopNumber, pMoveWindowToDesktopNumber, pGetWindowDesktopId, pGetDesktopNumberById, MaxDesktops, AppTempDir
 
     VDA_PATH := AppTempDir "\VirtualDesktopAccessor.dll"
 
@@ -90,9 +110,10 @@ LoadVDA() {
     pGoToDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GoToDesktopNumber", "Ptr")
     pGetCurrentDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetCurrentDesktopNumber", "Ptr")
     pMoveWindowToDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "MoveWindowToDesktopNumber", "Ptr")
-    pGetWindowDesktopNumber := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetWindowDesktopNumber", "Ptr")
+    pGetWindowDesktopId := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetWindowDesktopId", "Ptr")
+    pGetDesktopNumberById := DllCall("kernel32.dll\GetProcAddress", "Ptr", hVDA, "AStr", "GetDesktopNumberById", "Ptr")
 
-    if (!pGetDesktopCount || !pGoToDesktopNumber || !pGetCurrentDesktopNumber || !pMoveWindowToDesktopNumber) {
+    if (!pGetDesktopCount || !pGoToDesktopNumber || !pGetCurrentDesktopNumber || !pMoveWindowToDesktopNumber || !pGetWindowDesktopId || !pGetDesktopNumberById) {
         MsgBox "Failed to get function addresses from DLL."
         ExitApp
     }
@@ -150,6 +171,9 @@ ShowSelectGui() {
     btnNone := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "None (Windows Default)")
     btnNone.OnEvent("Click", OnNoneClick)
 
+    btnRestore := SelectGui.AddButton("w" btnWidth " h" btnHeight " x" xPos " y+10", "Restore")
+    btnRestore.OnEvent("Click", (*) => RestoreAndDisablePin())
+
     SelectGui.AddText("x0 y+20 h1 w" guiWidth " 0x10") ; Separator Line
     
     SelectGui.SetFont("s8", "Segoe UI")
@@ -161,6 +185,161 @@ ShowSelectGui() {
     
     SelectGui.AddText("y+10 h5") ; Bottom margin
     SelectGui.Show("Center")
+}
+
+RestoreAndDisablePin(*) {
+    global FixedMonitorIndex, Ready, SelectGui
+    FixedMonitorIndex := 0
+    Ready := true
+    RestoreStartupWindows()
+    try SelectGui.Destroy()
+}
+
+InstallWindowDestroyHook() {
+    global WindowDestroyHook, WindowDestroyCallbackPtr
+    WindowDestroyCallbackPtr := CallbackCreate(OnTrackedWindowDestroyed, "", 7)
+    WindowDestroyHook := DllCall("SetWinEventHook", "UInt", 0x8001, "UInt", 0x8001, "Ptr", 0, "Ptr", WindowDestroyCallbackPtr, "UInt", 0, "UInt", 0, "UInt", 0, "Ptr")
+    if !WindowDestroyHook {
+        try CallbackFree(WindowDestroyCallbackPtr)
+        WindowDestroyCallbackPtr := 0
+    }
+}
+
+OnTrackedWindowDestroyed(hook, event, hwnd, objectId, childId, threadId, eventTime) {
+    global StartupWindowDesktops
+    if (objectId = 0 && childId = 0 && StartupWindowDesktops.Has(hwnd))
+        StartupWindowDesktops.Delete(hwnd)
+}
+
+CaptureStartupWindows() {
+    global StartupWindowDesktops, WindowDestroyHook, pGetWindowDesktopId, pGetDesktopNumberById
+    if !WindowDestroyHook
+        return
+
+    for hwnd in WinGetList() {
+        if !DllCall("IsWindow", "Ptr", hwnd, "Int")
+            continue
+        windowPid := 0
+        DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &windowPid, "UInt")
+        if !windowPid
+            continue
+        desktopId := Buffer(16, 0)
+        try {
+            DllCall(pGetWindowDesktopId, "Ptr", desktopId.Ptr, "Ptr", hwnd, "Ptr")
+            if (DllCall(pGetDesktopNumberById, "Ptr", desktopId.Ptr, "Int") < 0)
+                continue
+            currentPid := 0
+            DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &currentPid, "UInt")
+            if (currentPid = windowPid && DllCall("IsWindow", "Ptr", hwnd, "Int"))
+                StartupWindowDesktops[hwnd] := { DesktopId: desktopId, ProcessId: windowPid }
+        } catch {
+            ; A window that cannot be identified is not safe to restore.
+        }
+    }
+}
+
+RestoreStartupWindows(*) {
+    global StartupWindowDesktops, pGetDesktopNumberById, pMoveWindowToDesktopNumber
+    static busy := false
+    if (busy || StartupWindowDesktops.Count = 0 || !pGetDesktopNumberById || !pMoveWindowToDesktopNumber)
+        return
+
+    busy := true
+    try {
+        windowsToRestore := StartupWindowDesktops.Clone()
+        for hwnd, window in windowsToRestore {
+            if !StartupWindowDesktops.Has(hwnd)
+                continue
+            if !DllCall("IsWindow", "Ptr", hwnd, "Int")
+                continue
+            windowPid := 0
+            DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &windowPid, "UInt")
+            if (windowPid != window.ProcessId)
+                continue
+            try {
+                desktopNumber := DllCall(pGetDesktopNumberById, "Ptr", window.DesktopId.Ptr, "Int")
+                if (desktopNumber >= 0 && StartupWindowDesktops.Has(hwnd) && DllCall("IsWindow", "Ptr", hwnd, "Int")) {
+                    currentPid := 0
+                    DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt*", &currentPid, "UInt")
+                    if (currentPid = window.ProcessId && DllCall("IsWindow", "Ptr", hwnd, "Int"))
+                        DllCall(pMoveWindowToDesktopNumber, "Ptr", hwnd, "Int", desktopNumber, "Int")
+                }
+            } catch {
+                ; Continue restoring other windows if one window fails.
+            }
+        }
+    } finally {
+        busy := false
+    }
+}
+
+RunRestoreSelfTest() {
+    global StartupWindowDesktops, pGetDesktopNumberById, pMoveWindowToDesktopNumber
+    global FixedMonitorIndex, Ready, SelectGui
+    global SelfTestDesktopNumber, SelfTestMoveCount, SelfTestLastHwnd, SelfTestLastDesktop
+
+    FixedMonitorIndex := 1
+    Ready := false
+    SelectGui := ""
+    SelfTestDesktopNumber := -1
+    SelfTestMoveCount := 0
+    SelfTestLastHwnd := 0
+    SelfTestLastDesktop := -1
+    pGetDesktopNumberById := CallbackCreate(SelfTestResolveDesktop, "", 1)
+    pMoveWindowToDesktopNumber := CallbackCreate(SelfTestMoveWindow, "", 2)
+    testWindow := Gui()
+    testWindow.Show("Hide")
+    untrackedWindow := Gui()
+    untrackedWindow.Show("Hide")
+    hwnd := testWindow.Hwnd
+    desktopId := Buffer(16, 0)
+    processId := DllCall("GetCurrentProcessId", "UInt")
+    StartupWindowDesktops[hwnd] := { DesktopId: desktopId, ProcessId: processId }
+
+    try {
+        RestoreStartupWindows()
+        if (SelfTestMoveCount != 0)
+            throw Error("A missing original desktop should not move the window.")
+
+        SelfTestDesktopNumber := 2
+        RestoreStartupWindows()
+        if (SelfTestMoveCount != 1 || SelfTestLastHwnd != hwnd || SelfTestLastDesktop != 2)
+            throw Error("A tracked window was not moved to its original desktop.")
+
+        RestoreAndDisablePin()
+        if (FixedMonitorIndex != 0 || !Ready || SelfTestMoveCount != 2)
+            throw Error("Restore did not disable the fixed monitor and restore again.")
+
+        OnTrackedWindowDestroyed(0, 0x8001, hwnd, 0, 0, 0, 0)
+        RestoreStartupWindows()
+        if (SelfTestMoveCount != 2)
+            throw Error("A destroyed window remained in the restore snapshot.")
+
+        FileAppend("Restore self-test passed.`n", "*")
+    } finally {
+        desktopCallback := pGetDesktopNumberById
+        moveCallback := pMoveWindowToDesktopNumber
+        StartupWindowDesktops := Map()
+        pGetDesktopNumberById := 0
+        pMoveWindowToDesktopNumber := 0
+        try CallbackFree(desktopCallback)
+        try CallbackFree(moveCallback)
+        try untrackedWindow.Destroy()
+        try testWindow.Destroy()
+    }
+}
+
+SelfTestResolveDesktop(desktopIdPtr) {
+    global SelfTestDesktopNumber
+    return desktopIdPtr ? SelfTestDesktopNumber : -1
+}
+
+SelfTestMoveWindow(hwnd, desktopNumber) {
+    global SelfTestMoveCount, SelfTestLastHwnd, SelfTestLastDesktop
+    SelfTestMoveCount += 1
+    SelfTestLastHwnd := hwnd
+    SelfTestLastDesktop := desktopNumber
+    return 0
 }
 
 ; =====================================================
@@ -260,6 +439,8 @@ HandleScrollLockDoubleTap(*) {
 ; INITIALIZATION
 ; =====================================================
 LoadVDA()
+InstallWindowDestroyHook()
+CaptureStartupWindows()
 ShowSelectGui()
 
 ; =====================================================

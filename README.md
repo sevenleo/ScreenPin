@@ -10,6 +10,7 @@ ScreenPin implements a seamless simulation where a selected "Fixed Monitor" rema
 
 - **Per-Monitor Isolation:** Keep your reference materials, chat apps, or dashboards fixed on one screen while rotating workflows on others.
 - **Instant Window Migration:** Move windows across desktops in micro-seconds, maintaining their exact geometric positions for a "zero-flicker" experience.
+- **Session Restore:** Return windows that were open at startup to their original virtual desktops with **Restore** or when ScreenPin exits. Windows opened later are left untouched.
 - **100% Compatibility:** Works seamlessly with Win32, UWP (Calculator, Settings), and Electron-based applications.
 - **Portable & Clean:** Single-file architecture. No installers, no registry changes, and a self-cleaning temporary dependency management system.
 - **DPI Aware:** Uses geographic coordinate tracking (X, Y) to ensure precision in complex multi-monitor setups with mixed scaling.
@@ -37,6 +38,9 @@ Traditional attempts to fix windows to a monitor often rely on the native Window
 4. **Relocation:** It programmatically moves these windows to the target virtual desktop at the same geometric coordinates.
 5. **Invisibility:** To the user, the windows appear to have never moved, effectively staying "pinned" to the physical screen.
 
+### Session Restore
+ScreenPin records the virtual desktop ID of each existing top-level window when it starts. Choose **Restore** from the tray menu or the configuration window to disable the fixed monitor and immediately return those windows to their original desktops. The same restoration runs when ScreenPin exits normally. Selecting **None (Windows Default)** only disables migration; the original window positions are restored when the app exits. Windows opened after ScreenPin starts are not part of the session snapshot.
+
 ### Single-File Portable Design
 ScreenPin embeds its binary dependencies (`VirtualDesktopAccessor.dll`) directly into the executable. 
 - On startup, it extracts the DLL to `%TEMP%\ScreenPin\`.
@@ -58,8 +62,11 @@ ScreenPin embeds its binary dependencies (`VirtualDesktopAccessor.dll`) directly
 ### First Run
 1. Upon launch, a configuration GUI will appear.
 2. Select which monitor you wish to keep "Fixed".
-3. Click "None" if you want to temporarily disable the pinning behavior.
-4. The app will move to the System Tray.
+3. Click "None" if you want to temporarily disable migration without restoring windows immediately.
+4. Click "Restore" to disable migration and immediately return startup windows to their original virtual desktops.
+5. The app will move to the System Tray.
+
+The tray menu also provides **Restore**, **Settings (Change Monitor)**, and **Exit**. Exit restores the startup windows before closing.
 
 ---
 
@@ -107,6 +114,12 @@ The build script uses `Ahk2Exe` to:
 ```batch
 :: Run this in a CMD/PowerShell terminal
 compile.bat
+```
+
+Run the focused session-restore logic check with AutoHotkey v2:
+
+```batch
+"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" test_restore_logic.ahk --self-test
 ```
 
 ---
