@@ -105,9 +105,11 @@ D:\GITHUB\ScreenPin\
 
 ## 🏗️ Developer Guide (Compilation)
 
-To bundle ScreenPin into a single portable `.exe`, invoke the compiler directly. The current `compile.bat` closes every AutoHotkey process before building, so avoid it if other AutoHotkey scripts are running.
+To bundle ScreenPin into a single portable `.exe`, run `compile.bat`. The script closes every AutoHotkey process before building, so avoid it if other AutoHotkey scripts are running.
 
 ### Compilation Workflow
+`compile.bat` resolves the AutoHotkey install dir from `HKLM\SOFTWARE\AutoHotkey\InstallDir`, falling back to `C:\Program Files\AutoHotkey` when the registry value is unreadable. If `Ahk2Exe` is missing, it opens the AutoHotkey dash (resolved dir first, default path second) so the component can be installed, then asks to run `compile.bat` again. On success it prints a note about the v2 base file; that note is informational and applies only if the built executable prompts for a script at launch.
+
 The build script uses `Ahk2Exe` to:
 1. Use the **AutoHotkey v2 64-bit** interpreter as the base.
 2. Inject `icon.ico` into the executable resources.
@@ -137,6 +139,10 @@ The integration test creates disposable windows, verifies monitor consolidation 
 ---
 
 ## 🔍 Troubleshooting
+
+### Build Issues
+- If the built executable prompts for an `.ahk` file at launch, it was linked against the wrong base. Rebuild with `compile.bat`, which selects the AutoHotkey v2 64-bit base, or pick that base manually in `Ahk2Exe`.
+- If `compile.bat` reports the compiler as missing, it opens the AutoHotkey dash so the component can be installed; run `compile.bat` again afterwards.
 
 ### DLL Load Errors
 If you receive a "Failed to load DLL" message:
