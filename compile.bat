@@ -16,17 +16,38 @@ set "ICON=icon.ico"
 echo [INFO] Preparing releases folder...
 if not exist "releases" mkdir "releases"
 
+if not exist "%COMPILER%" (
+    echo [ERROR] Compiler not found: "%COMPILER%"
+    pause
+    exit /b 1
+)
+if not exist "%BIN%" (
+    echo [ERROR] Base file not found: "%BIN%"
+    pause
+    exit /b 1
+)
+if not exist "%IN%" (
+    echo [ERROR] Input script not found: "%IN%"
+    pause
+    exit /b 1
+)
+if not exist "%ICON%" (
+    echo [ERROR] Icon not found: "%ICON%"
+    pause
+    exit /b 1
+)
+
 echo [INFO] Compiling ScreenPin (V2 Embedding Fix)...
 "%COMPILER%" /in "%IN%" /out "%OUT%" /icon "%ICON%" /bin "%BIN%"
 
-if %ERRORLEVEL% EQU 0 (
+if errorlevel 1 (
+    echo [ERROR] Compilation failed.
+) else (
     echo.
     echo [SUCCESS] ScreenPin.exe created!
     echo.
-    echo If it still asks for a .ahk file, please run Ahk2Exe.exe manually 
-    echo and select 'AutoHotkey64.exe' (v2) in the 'Base File' dropdown.
-) else (
-    echo [ERROR] Compilation failed.
+    echo If it still asks for a .ahk file, please run Ahk2Exe.exe manually
+    echo and select AutoHotkey64.exe v2 in the Base File dropdown.
 )
 
 pause
