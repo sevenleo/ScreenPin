@@ -29,7 +29,7 @@ if (A_Args.Length && A_Args[1] = "--integration-test") {
 ;@Ahk2Exe-SetMainIcon icon.ico
 ;@Ahk2Exe-SetName ScreenPin
 ;@Ahk2Exe-SetDescription ScreenPin
-;@Ahk2Exe-SetVersion 1.0.0
+;@Ahk2Exe-SetVersion 1.2.0
 
 ; =====================================================
 ; DEPENDENCIES & CLEANUP
